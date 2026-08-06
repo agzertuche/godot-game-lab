@@ -23,8 +23,10 @@ Do not add art polish, sound, power-ups, levels, menus beyond what the loop need
 - [x] Add a 30-second survival timer.
 - [x] Display basic win and loss state.
 - [x] Add restart behavior.
-- [ ] Manually test the full loop.
+- [x] Manually test the full loop.
 
 ## Lessons
 
-Complete this section after finishing the game.
+- Direct local scenes and scripts were enough for the first complete loop.
+- Godot rewrites scene and input-map metadata after editor use, so final commits should include the editor-normalized project files after manual testing.
+- The smallest playable version was easier to verify than a more abstract setup: movement, spawning, collision, win, loss, and restart are all visible in one short run.
