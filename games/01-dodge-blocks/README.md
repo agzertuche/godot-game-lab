@@ -14,15 +14,15 @@ Do not add art polish, sound, power-ups, levels, menus beyond what the loop need
 
 ## Tasks
 
-- [ ] Create the Godot project for Game 1.
-- [ ] Configure movement input actions.
-- [ ] Create the main scene.
-- [ ] Add a controllable player.
-- [ ] Spawn falling blocks.
-- [ ] Detect player-block collision.
-- [ ] Add a 30-second survival timer.
-- [ ] Display basic win and loss state.
-- [ ] Add restart behavior.
+- [x] Create the Godot project for Game 1.
+- [x] Configure movement input actions.
+- [x] Create the main scene.
+- [x] Add a controllable player.
+- [x] Spawn falling blocks.
+- [x] Detect player-block collision.
+- [x] Add a 30-second survival timer.
+- [x] Display basic win and loss state.
+- [x] Add restart behavior.
 - [ ] Manually test the full loop.
 
 ## Lessons

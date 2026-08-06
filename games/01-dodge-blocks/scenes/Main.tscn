@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://c8fb0jr6ebkbe"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/Block.tscn" id="2_block"]
+[ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="3_player"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+block_scene = ExtResource("2_block")
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+position = Vector2(320, 420)
+
+[node name="BlockSpawnTimer" type="Timer" parent="."]
+wait_time = 0.6
+autostart = true
+
+[node name="SurvivalTimer" type="Timer" parent="."]
+wait_time = 30.0
+one_shot = true
+autostart = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="TimeLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 160.0
+offset_bottom = 35.0
+text = "Time: 30"
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 40.0
+offset_right = 430.0
+offset_bottom = 63.0
+text = "Avoid the blocks"
