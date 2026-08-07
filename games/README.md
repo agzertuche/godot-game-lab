@@ -8,3 +8,4 @@ Start with `01-dodge-blocks`, finish its full gameplay loop, record lessons lear
 
 - `01-dodge-blocks` - finished.
 - `02-collect-everything` - implemented, awaiting manual full-loop test.
+- `03-breakout` - implemented, awaiting manual full-loop test.
