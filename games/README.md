@@ -10,3 +10,4 @@ Start with `01-dodge-blocks`, finish its full gameplay loop, record lessons lear
 - `02-collect-everything` - implemented, awaiting manual full-loop test.
 - `03-breakout` - implemented, awaiting manual full-loop test.
 - `04-one-room-shooter` - implemented, awaiting manual full-loop test.
+- `05-tiny-tower-defense` - implemented, awaiting manual full-loop test.

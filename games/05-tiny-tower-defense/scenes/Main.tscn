@@ -1,0 +1,112 @@
+[gd_scene load_steps=4 format=3 uid="uid://cuec2lpk3h8wj"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/Enemy.tscn" id="2_enemy"]
+[ext_resource type="PackedScene" path="res://scenes/Tower.tscn" id="3_tower"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+enemy_scene = ExtResource("2_enemy")
+tower_scene = ExtResource("3_tower")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 640.0
+offset_bottom = 480.0
+color = Color(0.08, 0.11, 0.1, 1)
+
+[node name="EnemyPath" type="Path2D" parent="."]
+
+[node name="PathLine" type="Line2D" parent="EnemyPath"]
+width = 18.0
+default_color = Color(0.31, 0.31, 0.26, 1)
+
+[node name="Base" type="Polygon2D" parent="."]
+position = Vector2(620, 260)
+color = Color(0.25, 0.74, 0.47, 1)
+polygon = PackedVector2Array(-16, -22, 16, -22, 22, 0, 16, 22, -16, 22, -22, 0)
+
+[node name="Towers" type="Node2D" parent="."]
+
+[node name="BuildSpots" type="Node2D" parent="."]
+
+[node name="Spot1" type="Node2D" parent="BuildSpots"]
+position = Vector2(104, 206)
+
+[node name="Marker" type="Polygon2D" parent="BuildSpots/Spot1"]
+color = Color(0.78, 0.7, 0.32, 1)
+polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
+
+[node name="Spot2" type="Node2D" parent="BuildSpots"]
+position = Vector2(216, 116)
+
+[node name="Marker" type="Polygon2D" parent="BuildSpots/Spot2"]
+color = Color(0.78, 0.7, 0.32, 1)
+polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
+
+[node name="Spot3" type="Node2D" parent="BuildSpots"]
+position = Vector2(282, 206)
+
+[node name="Marker" type="Polygon2D" parent="BuildSpots/Spot3"]
+color = Color(0.78, 0.7, 0.32, 1)
+polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
+
+[node name="Spot4" type="Node2D" parent="BuildSpots"]
+position = Vector2(390, 300)
+
+[node name="Marker" type="Polygon2D" parent="BuildSpots/Spot4"]
+color = Color(0.78, 0.7, 0.32, 1)
+polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
+
+[node name="Spot5" type="Node2D" parent="BuildSpots"]
+position = Vector2(496, 398)
+
+[node name="Marker" type="Polygon2D" parent="BuildSpots/Spot5"]
+color = Color(0.78, 0.7, 0.32, 1)
+polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
+
+[node name="Spot6" type="Node2D" parent="BuildSpots"]
+position = Vector2(552, 286)
+
+[node name="Marker" type="Polygon2D" parent="BuildSpots/Spot6"]
+color = Color(0.78, 0.7, 0.32, 1)
+polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
+
+[node name="SpawnTimer" type="Timer" parent="."]
+wait_time = 1.0
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="HealthLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 140.0
+offset_bottom = 35.0
+text = "Base: 8"
+
+[node name="CurrencyLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 40.0
+offset_right = 160.0
+offset_bottom = 63.0
+text = "Currency: 10"
+
+[node name="WaveLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 68.0
+offset_right = 160.0
+offset_bottom = 91.0
+text = "Wave: 1 / 3"
+
+[node name="EnemiesLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 96.0
+offset_right = 160.0
+offset_bottom = 119.0
+text = "Enemies: 4"
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 124.0
+offset_right = 460.0
+offset_bottom = 147.0
+text = "Place towers on marked spots."
