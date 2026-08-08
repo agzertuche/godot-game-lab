@@ -110,3 +110,10 @@ offset_top = 124.0
 offset_right = 460.0
 offset_bottom = 147.0
 text = "Place towers on marked spots."
+
+[node name="ControlsLabel" type="Label" parent="CanvasLayer"]
+offset_left = 16.0
+offset_top = 152.0
+offset_right = 560.0
+offset_bottom = 175.0
+text = "Controls: Click yellow spots to place towers. Press R after win/loss to restart."
