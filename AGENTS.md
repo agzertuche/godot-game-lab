@@ -47,7 +47,7 @@ godot-game-lab/
     ├── 03-breakout/
     ├── 04-one-room-shooter/
     ├── 05-tiny-tower-defense/
-    ├── 06-sokoban/
+    ├── 06-tiny-idle/
     ├── 07-mini-platformer/
     ├── 08-tiny-roguelite-arena/
     ├── 09-micro-strategy/
@@ -176,25 +176,30 @@ Completion criteria:
 
 Do not add upgrades or branching paths.
 
-### Game 6: Sokoban
+### Game 6: Tiny Garden Idle
 
-Concept: Push boxes onto target cells.
+Concept: Tend a tiny garden, earn coins manually and passively, buy plots, and improve watering.
 
 Learn:
 
-- Grid-based movement
-- Logical state independent from visuals
-- Validating moves
-- Resetting a puzzle
-- Win detection
+- Timer-driven passive income
+- Button-driven interaction
+- Incremental costs
+- Upgrade balancing
+- UI state and disabled buttons
+- Simple visual feedback
+- Win detection without a lose condition
 
 Completion criteria:
 
-- The player moves on a grid.
-- Boxes can be pushed but not pulled.
-- Invalid moves are blocked.
-- One complete puzzle exists.
-- Filling every target wins.
+- The player can earn coins manually.
+- Owned plots generate passive coins.
+- Plots can be bought with increasing costs.
+- Watering upgrades increase production.
+- Reaching the target total wins.
+- The game can restart after winning.
+
+Do not add save data, offline progress, prestige, multiple currencies, inventories, or multiple screens.
 
 ### Game 7: Mini Platformer
 
