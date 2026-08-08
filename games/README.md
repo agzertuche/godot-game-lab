@@ -11,3 +11,4 @@ Start with `01-dodge-blocks`, finish its full gameplay loop, record lessons lear
 - `03-breakout` - implemented, awaiting manual full-loop test.
 - `04-one-room-shooter` - implemented, awaiting manual full-loop test.
 - `05-tiny-tower-defense` - implemented, awaiting manual full-loop test.
+- `06-tiny-idle` - implemented, awaiting manual full-loop test.

@@ -1,0 +1,133 @@
+[gd_scene load_steps=2 format=3 uid="uid://deixnhec31fmn"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 960.0
+offset_bottom = 720.0
+color = Color(0.14, 0.22, 0.18, 1)
+
+[node name="GardenBed" type="ColorRect" parent="."]
+offset_left = 260.0
+offset_top = 170.0
+offset_right = 900.0
+offset_bottom = 610.0
+color = Color(0.47, 0.34, 0.22, 1)
+
+[node name="Plots" type="Node2D" parent="."]
+
+[node name="Plot1" type="Polygon2D" parent="Plots"]
+position = Vector2(360, 280)
+color = Color(0.38, 0.77, 0.39, 1)
+polygon = PackedVector2Array(-58, -42, 58, -42, 58, 42, -58, 42)
+
+[node name="Plot2" type="Polygon2D" parent="Plots"]
+position = Vector2(580, 280)
+color = Color(0.31, 0.22, 0.15, 1)
+polygon = PackedVector2Array(-58, -42, 58, -42, 58, 42, -58, 42)
+
+[node name="Plot3" type="Polygon2D" parent="Plots"]
+position = Vector2(800, 280)
+color = Color(0.31, 0.22, 0.15, 1)
+polygon = PackedVector2Array(-58, -42, 58, -42, 58, 42, -58, 42)
+
+[node name="Plot4" type="Polygon2D" parent="Plots"]
+position = Vector2(360, 470)
+color = Color(0.31, 0.22, 0.15, 1)
+polygon = PackedVector2Array(-58, -42, 58, -42, 58, 42, -58, 42)
+
+[node name="Plot5" type="Polygon2D" parent="Plots"]
+position = Vector2(580, 470)
+color = Color(0.31, 0.22, 0.15, 1)
+polygon = PackedVector2Array(-58, -42, 58, -42, 58, 42, -58, 42)
+
+[node name="Plot6" type="Polygon2D" parent="Plots"]
+position = Vector2(800, 470)
+color = Color(0.31, 0.22, 0.15, 1)
+polygon = PackedVector2Array(-58, -42, 58, -42, 58, 42, -58, 42)
+
+[node name="IncomeTimer" type="Timer" parent="."]
+wait_time = 1.0
+autostart = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 18.0
+offset_right = 360.0
+offset_bottom = 45.0
+text = "Tiny Garden Idle"
+
+[node name="CoinsLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 72.0
+offset_right = 240.0
+offset_bottom = 95.0
+text = "Coins: 0"
+
+[node name="TotalLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 100.0
+offset_right = 280.0
+offset_bottom = 123.0
+text = "Total earned: 0 / 500"
+
+[node name="ProductionLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 128.0
+offset_right = 300.0
+offset_bottom = 151.0
+text = "Production: 1 coins/sec"
+
+[node name="PlotsLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 156.0
+offset_right = 180.0
+offset_bottom = 179.0
+text = "Plots: 1 / 6"
+
+[node name="WateringLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 184.0
+offset_right = 220.0
+offset_bottom = 207.0
+text = "Watering: level 1"
+
+[node name="TendButton" type="Button" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 246.0
+offset_right = 210.0
+offset_bottom = 286.0
+text = "Tend garden (+1)"
+
+[node name="BuyPlotButton" type="Button" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 300.0
+offset_right = 210.0
+offset_bottom = 340.0
+text = "Buy plot (10)"
+
+[node name="WaterButton" type="Button" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 354.0
+offset_right = 230.0
+offset_bottom = 394.0
+text = "Improve watering (25)"
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 438.0
+offset_right = 320.0
+offset_bottom = 461.0
+text = "Tend, buy plots, and grow to 500."
+
+[node name="ControlsLabel" type="Label" parent="CanvasLayer"]
+offset_left = 24.0
+offset_top = 466.0
+offset_right = 360.0
+offset_bottom = 489.0
+text = "Controls: Click buttons. Press R after winning."
