@@ -54,7 +54,7 @@ func _find_target() -> Node2D:
 
 
 func _show_shot(target_position: Vector2) -> void:
-	shot_line.points = PackedVector2Array(Vector2.ZERO, to_local(target_position))
+	shot_line.points = PackedVector2Array([Vector2.ZERO, to_local(target_position)])
 	shot_line.visible = true
 	shot_time_left = shot_visible_time
 
