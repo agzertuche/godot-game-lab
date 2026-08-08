@@ -1,13 +1,13 @@
 extends Node2D
 
 const PATH_POINTS := [
-	Vector2(24, 260),
-	Vector2(160, 260),
-	Vector2(160, 150),
-	Vector2(330, 150),
-	Vector2(330, 350),
-	Vector2(560, 350),
-	Vector2(620, 260),
+	Vector2(40, 380),
+	Vector2(240, 380),
+	Vector2(240, 220),
+	Vector2(500, 220),
+	Vector2(500, 520),
+	Vector2(820, 520),
+	Vector2(920, 380),
 ]
 const WAVES := [4, 6, 8]
 const CLICK_RADIUS := 24.0
@@ -45,7 +45,7 @@ func _ready() -> void:
 	_update_ui()
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("restart") and game_over:
 		get_tree().reload_current_scene()
 		return

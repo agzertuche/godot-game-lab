@@ -10,8 +10,8 @@ enemy_scene = ExtResource("2_enemy")
 tower_scene = ExtResource("3_tower")
 
 [node name="Background" type="ColorRect" parent="."]
-offset_right = 640.0
-offset_bottom = 480.0
+offset_right = 960.0
+offset_bottom = 720.0
 color = Color(0.08, 0.11, 0.1, 1)
 
 [node name="EnemyPath" type="Path2D" parent="."]
@@ -21,7 +21,7 @@ width = 18.0
 default_color = Color(0.31, 0.31, 0.26, 1)
 
 [node name="Base" type="Polygon2D" parent="."]
-position = Vector2(620, 260)
+position = Vector2(920, 380)
 color = Color(0.25, 0.74, 0.47, 1)
 polygon = PackedVector2Array(-16, -22, 16, -22, 22, 0, 16, 22, -16, 22, -22, 0)
 
@@ -30,42 +30,42 @@ polygon = PackedVector2Array(-16, -22, 16, -22, 22, 0, 16, 22, -16, 22, -22, 0)
 [node name="BuildSpots" type="Node2D" parent="."]
 
 [node name="Spot1" type="Node2D" parent="BuildSpots"]
-position = Vector2(104, 206)
+position = Vector2(156, 300)
 
 [node name="Marker" type="Polygon2D" parent="BuildSpots/Spot1"]
 color = Color(0.78, 0.7, 0.32, 1)
 polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
 
 [node name="Spot2" type="Node2D" parent="BuildSpots"]
-position = Vector2(216, 116)
+position = Vector2(320, 164)
 
 [node name="Marker" type="Polygon2D" parent="BuildSpots/Spot2"]
 color = Color(0.78, 0.7, 0.32, 1)
 polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
 
 [node name="Spot3" type="Node2D" parent="BuildSpots"]
-position = Vector2(282, 206)
+position = Vector2(424, 316)
 
 [node name="Marker" type="Polygon2D" parent="BuildSpots/Spot3"]
 color = Color(0.78, 0.7, 0.32, 1)
 polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
 
 [node name="Spot4" type="Node2D" parent="BuildSpots"]
-position = Vector2(390, 300)
+position = Vector2(592, 438)
 
 [node name="Marker" type="Polygon2D" parent="BuildSpots/Spot4"]
 color = Color(0.78, 0.7, 0.32, 1)
 polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
 
 [node name="Spot5" type="Node2D" parent="BuildSpots"]
-position = Vector2(496, 398)
+position = Vector2(740, 598)
 
 [node name="Marker" type="Polygon2D" parent="BuildSpots/Spot5"]
 color = Color(0.78, 0.7, 0.32, 1)
 polygon = PackedVector2Array(0, -10, 10, 0, 0, 10, -10, 0)
 
 [node name="Spot6" type="Node2D" parent="BuildSpots"]
-position = Vector2(552, 286)
+position = Vector2(820, 410)
 
 [node name="Marker" type="Polygon2D" parent="BuildSpots/Spot6"]
 color = Color(0.78, 0.7, 0.32, 1)
@@ -107,13 +107,13 @@ text = "Enemies: 4"
 [node name="StatusLabel" type="Label" parent="CanvasLayer"]
 offset_left = 16.0
 offset_top = 124.0
-offset_right = 460.0
+offset_right = 620.0
 offset_bottom = 147.0
 text = "Place towers on marked spots."
 
 [node name="ControlsLabel" type="Label" parent="CanvasLayer"]
 offset_left = 16.0
 offset_top = 152.0
-offset_right = 560.0
+offset_right = 820.0
 offset_bottom = 175.0
 text = "Controls: Click yellow spots to place towers. Press R after win/loss to restart."
