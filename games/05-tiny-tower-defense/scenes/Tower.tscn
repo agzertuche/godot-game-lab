@@ -9,12 +9,17 @@ script = ExtResource("1_tower")
 visible = false
 points = PackedVector2Array(115, 0, 81, 81, 0, 115, -81, 81, -115, 0, -81, -81, 0, -115, 81, -81, 115, 0)
 width = 2.0
-default_color = Color(0.48, 0.66, 0.86, 0.3)
+default_color = Color(0.35, 0.78, 0.74, 0.3)
+
+[node name="ShotLine" type="Line2D" parent="."]
+visible = false
+width = 3.0
+default_color = Color(1, 0.86, 0.25, 1)
 
 [node name="Base" type="Polygon2D" parent="."]
-color = Color(0.2, 0.53, 0.79, 1)
+color = Color(0.08, 0.57, 0.58, 1)
 polygon = PackedVector2Array(0, -14, 12, -6, 12, 10, -12, 10, -12, -6)
 
 [node name="Barrel" type="Polygon2D" parent="."]
-color = Color(0.09, 0.2, 0.32, 1)
+color = Color(0.09, 0.16, 0.27, 1)
 polygon = PackedVector2Array(-4, -18, 4, -18, 4, -4, -4, -4)
