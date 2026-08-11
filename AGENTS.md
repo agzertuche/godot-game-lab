@@ -48,7 +48,7 @@ godot-game-lab/
     ├── 04-one-room-shooter/
     ├── 05-tiny-tower-defense/
     ├── 06-tiny-idle/
-    ├── 07-mini-platformer/
+    ├── 07-tiny-kitchen-rush/
     ├── 08-tiny-roguelite-arena/
     ├── 09-micro-strategy/
     └── 10-three-day-game-jam/
@@ -201,29 +201,30 @@ Completion criteria:
 
 Do not add save data, offline progress, prestige, multiple currencies, inventories, or multiple screens.
 
-### Game 7: Mini Platformer
+### Game 7: Tiny Kitchen Rush
 
-Concept: Reach the exit of one short level.
+Concept: Assemble simple food orders under time pressure before the shift ends.
 
 Learn:
 
-- Gravity
-- Jumping
-- Floor detection
-- Moving platforms
-- Hazards
-- Checkpoints
-- Camera movement
+- Timed order state
+- Button-driven interaction
+- Recipe matching
+- Countdown pressure
+- Score and mistakes
+- Win and loss state management
 
 Completion criteria:
 
-- Running and jumping work.
-- One hazard exists.
-- One moving platform exists.
-- One checkpoint exists.
-- Reaching the exit wins.
+- Ingredient buttons add items to a plate.
+- The plate can be cleared.
+- Serving a matching plate completes the order.
+- Incorrect or expired orders count as misses.
+- Serving enough orders wins.
+- Too many misses or shift timeout loses.
+- The game can restart after winning or losing.
 
-Do not add combat.
+Do not add drag-and-drop, multiple stations, moving customers, upgrades, money, or multiple screens.
 
 ### Game 8: Tiny Roguelite Arena
 

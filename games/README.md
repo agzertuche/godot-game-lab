@@ -6,6 +6,8 @@ Start with `01-dodge-blocks`, finish its full gameplay loop, record lessons lear
 
 Game 6 intentionally changed from the original Sokoban slot to a tiny idle game so the sequence can explore timers, passive income, upgrades, and button-driven UI.
 
+Game 7 intentionally changed from the original mini-platformer slot to a tiny cooking time-management game so the sequence can explore timed orders, recipe matching, and mistake pressure.
+
 ## Current games
 
 - `01-dodge-blocks` - finished.
@@ -14,3 +16,4 @@ Game 6 intentionally changed from the original Sokoban slot to a tiny idle game 
 - `04-one-room-shooter` - implemented, awaiting manual full-loop test.
 - `05-tiny-tower-defense` - implemented, awaiting manual full-loop test.
 - `06-tiny-idle` - implemented, awaiting manual full-loop test.
+- `07-tiny-kitchen-rush` - implemented, awaiting manual full-loop test.
