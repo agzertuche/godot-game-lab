@@ -2,6 +2,9 @@ extends Node2D
 
 const FLOOR_COUNT := 10
 const ELEVATOR_COUNT := 3
+const HallRequestManager := preload("res://scripts/simulation/hall_request_manager.gd")
+const ElevatorDispatcher := preload("res://scripts/simulation/elevator_dispatcher.gd")
+const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 const WAVE_SECONDS := 60.0
 const PASS_GRADE := 8.0
 const LEVELS := [
@@ -23,6 +26,8 @@ var spawn_index := 0
 var passenger_schedule: Array[Dictionary] = []
 var passengers: Array[RushPassenger] = []
 var elevators: Array[RushElevator] = []
+var hall_request_manager: HallRequestManager
+var elevator_dispatcher: ElevatorDispatcher
 var delivered_count := 0
 var total_wait_time := 0.0
 var longest_wait_time := 0.0
@@ -34,6 +39,7 @@ var adaptive_chaos_schedule: Array[Dictionary] = []
 @onready var passengers_root: Node2D = $Building/Passengers
 @onready var phase_label: Label = $UI/PhaseLabel
 @onready var simulation_hud: Label = $UI/SimulationHUD
+@onready var dispatch_debug: Label = $UI/DispatchDebug
 @onready var preparation_panel: ColorRect = $UI/PreparationPanel
 @onready var level_label: Label = $UI/PreparationPanel/LevelLabel
 @onready var preparation_help: Label = $UI/PreparationPanel/Help
@@ -61,6 +67,8 @@ func _ready() -> void:
 		_apply_behavior_options(behavior_boxes[index])
 		apply_buttons[index].pressed.connect(_request_live_strategy.bind(index))
 	_create_elevators()
+	hall_request_manager = HallRequestManager.new(FLOOR_COUNT)
+	elevator_dispatcher = ElevatorDispatcher.new()
 	_apply_ui_contrast($UI)
 	_update_ui()
 	queue_redraw()
@@ -73,15 +81,16 @@ func _process(delta: float) -> void:
 	wave_time += delta
 	_spawn_due_passengers()
 	_update_wait_times(delta)
-	var waiting := _waiting_passengers()
+	_dispatch_unassigned_requests()
 	for elevator in elevators:
-		var arrived := elevator.update_simulation(delta, waiting)
-		for passenger in arrived:
-			_record_arrival(passenger, elevator)
-		waiting = _waiting_passengers()
+		elevator.tick_strategy_cooldown(delta)
+		_apply_pending_strategy_if_ready(elevator)
+		_tick_elevator(elevator, delta)
+	_dispatch_unassigned_requests()
 
 	_reposition_waiting_passengers()
 	_update_ui()
+	_update_dispatch_debug()
 	if wave_time >= WAVE_SECONDS:
 		_finish_wave()
 
@@ -112,8 +121,8 @@ func _create_elevators() -> void:
 
 
 func _start_wave() -> void:
-	_apply_strategies()
 	_reset_wave_state()
+	_apply_strategies()
 	phase = Phase.RUNNING
 	preparation_panel.visible = true
 	results_panel.visible = false
@@ -123,8 +132,8 @@ func _start_wave() -> void:
 func _restart_level() -> void:
 	if phase != Phase.RUNNING:
 		return
-	_apply_strategies()
 	_reset_wave_state()
+	_apply_strategies()
 	_update_ui()
 
 
@@ -135,10 +144,11 @@ func _apply_strategies() -> void:
 		var staging := roundi(staging_boxes[index].value)
 		var behavior := behavior_boxes[index].selected
 		elevators[index].set_strategy(minimum, maximum, staging, behavior)
-		elevators[index].current_floor = elevators[index].staging_floor
-		elevators[index].target_floor = elevators[index].staging_floor
-		elevators[index].position.y = floor_y_positions[elevators[index].staging_floor - 1]
-		elevators[index].queue_redraw()
+		var controller := elevators[index].controller
+		controller.configure_strategy(minimum, maximum, staging, behavior)
+		controller.reset(controller.staging_floor, controller.staging_floor)
+		elevators[index].position.y = floor_y_positions[controller.staging_floor - 1]
+		elevators[index].sync_presentation()
 
 
 func _reset_wave_state() -> void:
@@ -147,16 +157,15 @@ func _reset_wave_state() -> void:
 			passenger.queue_free()
 	passengers.clear()
 
+	hall_request_manager = HallRequestManager.new(FLOOR_COUNT)
+	elevator_dispatcher = ElevatorDispatcher.new()
 	for elevator in elevators:
-		elevator.passengers.clear()
-		elevator.state = RushElevator.State.IDLE
-		elevator.direction = 0
-		elevator.last_travel_direction = 1
+		elevator.controller.reset(elevator.staging_floor, elevator.staging_floor)
 		elevator.busy_time = 0.0
 		elevator.transported_count = 0
 		elevator.stop_count = 0
 		elevator.clear_live_strategy_state()
-		elevator.queue_redraw()
+		elevator.sync_presentation()
 
 	wave_time = 0.0
 	spawn_index = 0
@@ -253,31 +262,87 @@ func _spawn_due_passengers() -> void:
 		var demand := passenger_schedule[spawn_index]
 		var passenger := passenger_script.new() as RushPassenger
 		passengers_root.add_child(passenger)
-		passenger.configure(int(demand["origin"]), int(demand["destination"]), float(demand["time"]))
+		passenger.configure(int(demand["origin"]), int(demand["destination"]), wave_time)
 		passengers.append(passenger)
+		hall_request_manager.register_waiting_passenger(passenger, wave_time)
 		spawn_index += 1
 
 
 func _update_wait_times(delta: float) -> void:
 	for passenger in passengers:
-		if passenger.state == RushPassenger.State.WAITING:
+		if passenger.is_waiting():
 			passenger.wait_time += delta
 
 
 func _waiting_passengers() -> Array[RushPassenger]:
 	var waiting: Array[RushPassenger] = []
 	for passenger in passengers:
-		if passenger.state == RushPassenger.State.WAITING:
+		if passenger.is_waiting():
 			waiting.append(passenger)
 	return waiting
 
 
 func _record_arrival(passenger: RushPassenger, elevator: RushElevator) -> void:
+	if passenger.state != SimulationTypes.PassengerState.COMPLETED:
+		return
 	delivered_count += 1
 	total_wait_time += passenger.wait_time
 	longest_wait_time = maxf(longest_wait_time, passenger.wait_time)
 	elevator.transported_count += 1
 	passenger.visible = false
+
+
+func _dispatch_unassigned_requests() -> void:
+	var controllers: Array[ElevatorController] = []
+	for elevator in elevators:
+		controllers.append(elevator.controller)
+	elevator_dispatcher.assign_unassigned_requests(controllers, hall_request_manager.get_unassigned_requests(), wave_time)
+
+
+func _tick_elevator(elevator: RushElevator, delta: float) -> void:
+	var controller := elevator.controller
+	if controller.movement_state == SimulationTypes.MovementState.MOVING:
+		if elevator.advance_motion(delta):
+			controller.arrive_at(controller.target_floor)
+			elevator.stop_count += 1
+			_process_controller_stop(elevator)
+		return
+
+	var next_stop := controller.next_stop()
+	if next_stop == 0:
+		elevator.sync_presentation()
+		return
+	if next_stop == controller.current_floor:
+		controller.arrive_at(next_stop)
+		_process_controller_stop(elevator)
+		return
+	controller.begin_moving_to(next_stop)
+	elevator.sync_presentation()
+
+
+func _process_controller_stop(elevator: RushElevator) -> void:
+	var result := elevator.controller.process_stop(hall_request_manager, wave_time)
+	for passenger: RushPassenger in result["boarded"]:
+		passenger.visible = false
+	for passenger: RushPassenger in result["exited"]:
+		_record_arrival(passenger, elevator)
+	elevator.sync_presentation()
+
+
+func _apply_pending_strategy_if_ready(elevator: RushElevator) -> void:
+	if elevator.pending_strategy.is_empty() or elevator.strategy_cooldown_left > 0.0:
+		return
+	if elevator.controller.movement_state != SimulationTypes.MovementState.IDLE:
+		return
+	var pending := elevator.pending_strategy
+	elevator.set_strategy(int(pending["min"]), int(pending["max"]), int(pending["stage"]), int(pending["behavior"]))
+	elevator.controller.configure_strategy(elevator.allowed_min, elevator.allowed_max, elevator.staging_floor, elevator.behavior_rule)
+	for request: HallRequest in elevator.controller.assigned_hall_requests.duplicate():
+		if not elevator.controller.can_accept_hall_request(request):
+			elevator.controller.remove_hall_request(request)
+			hall_request_manager.release_request_assignment(request)
+	elevator.pending_strategy.clear()
+	elevator.sync_presentation()
 
 
 func _reposition_waiting_passengers() -> void:
@@ -414,6 +479,24 @@ func _update_ui() -> void:
 		simulation_hud.text = "Wave complete. Score 8.0+ to unlock the next level."
 		restart_button.visible = false
 	_update_strategy_panel()
+	_update_dispatch_debug()
+
+
+func _update_dispatch_debug() -> void:
+	if dispatch_debug == null:
+		return
+	var lines: Array[String] = []
+	for elevator in elevators:
+		var controller := elevator.controller
+		var direction := "↑" if controller.service_direction == SimulationTypes.Direction.UP else "↓" if controller.service_direction == SimulationTypes.Direction.DOWN else "•"
+		var hall_floors: Array[String] = []
+		for request: HallRequest in controller.assigned_hall_requests:
+			hall_floors.append("%d%s" % [request.floor, "↑" if request.direction == SimulationTypes.Direction.UP else "↓"])
+		var destinations: Array[String] = []
+		for floor: int in controller.destination_requests:
+			destinations.append(str(floor))
+		lines.append("E%d F%d %s %d/%d  H[%s] D[%s] →%d" % [controller.elevator_id, controller.current_floor, direction, controller.passengers.size(), controller.capacity, ",".join(hall_floors), ",".join(destinations), controller.target_floor])
+	dispatch_debug.text = "\n".join(lines)
 
 
 func _update_results_actions() -> void:

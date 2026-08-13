@@ -28,8 +28,8 @@ var pending_strategy: Dictionary = {}
 var strategy_cooldown_left := 0.0
 var strategy_change_count := 0
 
-## Legacy mirrors are retained for the existing HUD until Main is migrated.
-## The authoritative passenger and route state is ElevatorController.
+## Presentation metrics and mirrors. The authoritative passenger and route
+## state is ElevatorController; Main owns the simulation tick.
 var passengers: Array[RushPassenger] = []
 var busy_time := 0.0
 var transported_count := 0
@@ -48,7 +48,7 @@ func configure(identifier: int, floor_positions: Array[float]) -> void:
 
 func bind_controller(value: ElevatorController) -> void:
 	controller = value
-	_sync_from_controller()
+	sync_presentation()
 
 
 func set_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: int = Behavior.NORMAL) -> void:
@@ -74,30 +74,26 @@ func clear_live_strategy_state() -> void:
 
 
 func can_serve(passenger: RushPassenger) -> bool:
-	return passenger.origin_floor >= allowed_min and passenger.origin_floor <= allowed_max and passenger.destination_floor >= allowed_min and passenger.destination_floor <= allowed_max
+	return controller != null and passenger.origin_floor >= controller.allowed_min and passenger.origin_floor <= controller.allowed_max and passenger.destination_floor >= controller.allowed_min and passenger.destination_floor <= controller.allowed_max
 
 
 func has_capacity() -> bool:
 	return controller == null or controller.has_capacity()
 
 
-## Deprecated compatibility entry point. It consumes no global passenger list;
-## Main will be migrated to drive a SimulationManager in the next task.
-func update_simulation(delta: float, _waiting_passengers: Array[RushPassenger]) -> Array[RushPassenger]:
+## Advances only the visible cabin toward the controller's already chosen
+## target. Returning true means Main must run the simulation stop lifecycle.
+func advance_motion(delta: float) -> bool:
+	if controller == null or controller.movement_state != SimulationTypes.MovementState.MOVING:
+		return false
+	busy_time += delta
+	var target_y := _floor_y(controller.target_floor)
+	position.y = move_toward(position.y, target_y, SPEED * delta)
+	return is_equal_approx(position.y, target_y)
+
+
+func tick_strategy_cooldown(delta: float) -> void:
 	strategy_cooldown_left = maxf(0.0, strategy_cooldown_left - delta)
-	if controller == null:
-		return []
-
-	if controller.movement_state == SimulationTypes.MovementState.MOVING:
-		busy_time += delta
-		_move(delta)
-		return []
-
-	var next := controller.next_stop()
-	if next != 0 and next != current_floor:
-		controller.begin_moving_to(next)
-		_sync_from_controller()
-	return []
 
 
 func behavior_name(rule: int = -1) -> String:
@@ -131,19 +127,7 @@ func _make_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: 
 	return {"min": minimum, "max": maximum, "stage": clampi(stage_floor, minimum, maximum), "behavior": behavior}
 
 
-func _move(delta: float) -> void:
-	var target_y := _floor_y(controller.target_floor)
-	position.y = move_toward(position.y, target_y, SPEED * delta)
-	if is_equal_approx(position.y, target_y):
-		stop_count += 1
-		controller.arrive_at(controller.target_floor)
-		controller.recalculate_service_direction()
-		controller.complete_stop()
-		_sync_from_controller()
-		queue_redraw()
-
-
-func _sync_from_controller() -> void:
+func sync_presentation() -> void:
 	if controller == null:
 		return
 	current_floor = controller.current_floor
@@ -153,6 +137,7 @@ func _sync_from_controller() -> void:
 		last_travel_direction = direction
 	state = State.MOVING if controller.movement_state == SimulationTypes.MovementState.MOVING else State.IDLE
 	passengers = controller.passengers
+	queue_redraw()
 
 
 func _floor_y(floor: int) -> float:

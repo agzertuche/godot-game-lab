@@ -11,6 +11,7 @@ const INTERMEDIATE_STOP_PENALTY := 1.5
 const DIRECTION_MISMATCH_PENALTY := 8.0
 const LOAD_PENALTY := 4.0
 const WAITING_TIME_PRIORITY := 0.25
+const DIRECTION_BIAS_BONUS := 2.0
 
 signal hall_request_assigned(request: HallRequest, controller: ElevatorController)
 
@@ -25,7 +26,8 @@ func calculate_assignment_cost(
 	var direction_mismatch_penalty := DIRECTION_MISMATCH_PENALTY if _requires_direction_change(controller, request) else 0.0
 	var load_penalty := _load_ratio(controller) * LOAD_PENALTY
 	var waiting_time_priority := request.waiting_time(now) * WAITING_TIME_PRIORITY
-	return estimated_pickup_time + intermediate_stop_penalty + direction_mismatch_penalty + load_penalty - waiting_time_priority
+	var direction_bias_bonus := _direction_bias_bonus(controller, request)
+	return estimated_pickup_time + intermediate_stop_penalty + direction_mismatch_penalty + load_penalty - waiting_time_priority - direction_bias_bonus
 
 
 func assign_unassigned_requests(
@@ -42,7 +44,7 @@ func assign_unassigned_requests(
 		var selected_controller: ElevatorController = null
 		var selected_cost := INF
 		for controller: ElevatorController in controllers:
-			if not controller.has_capacity():
+			if not controller.has_capacity() or not controller.can_accept_hall_request(request):
 				continue
 			var cost := calculate_assignment_cost(controller, request, now)
 			if _should_select(controller, cost, selected_controller, selected_cost):
@@ -79,6 +81,14 @@ func _load_ratio(controller: ElevatorController) -> float:
 	if controller.capacity <= 0:
 		return 1.0
 	return float(controller.passengers.size()) / float(controller.capacity)
+
+
+func _direction_bias_bonus(controller: ElevatorController, request: HallRequest) -> float:
+	if controller.behavior_rule == ElevatorController.Behavior.UP_BIAS and request.direction == SimulationTypes.Direction.UP:
+		return DIRECTION_BIAS_BONUS
+	if controller.behavior_rule == ElevatorController.Behavior.DOWN_BIAS and request.direction == SimulationTypes.Direction.DOWN:
+		return DIRECTION_BIAS_BONUS
+	return 0.0
 
 
 func _is_between(origin_floor: int, candidate_floor: int, target_floor: int) -> bool:

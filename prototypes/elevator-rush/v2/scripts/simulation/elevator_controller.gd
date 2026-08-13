@@ -13,6 +13,13 @@ signal passenger_exited(passenger: RushPassenger, floor: int)
 signal elevator_direction_changed(previous_direction: int, new_direction: int)
 
 const CAPACITY := 4
+const Behavior := {
+	"NORMAL": 0,
+	"UP_BIAS": 1,
+	"DOWN_BIAS": 2,
+	"UP_ONLY": 3,
+	"DOWN_ONLY": 4,
+}
 
 var elevator_id := 0
 var current_floor := 1
@@ -24,6 +31,10 @@ var assigned_hall_requests: Array[HallRequest] = []
 var destination_requests: Dictionary = {}
 var door_state := SimulationTypes.DoorState.CLOSED
 var target_floor := 0
+var allowed_min := 1
+var allowed_max := 10
+var staging_floor := 1
+var behavior_rule := Behavior.NORMAL
 
 
 func _init(identifier: int = 0, starting_floor: int = 1) -> void:
@@ -33,6 +44,40 @@ func _init(identifier: int = 0, starting_floor: int = 1) -> void:
 
 func has_capacity() -> bool:
 	return passengers.size() < capacity
+
+
+## Reset is intentionally explicit so a replay cannot retain car calls, hall
+## assignments, or a direction from its previous run.
+func reset(starting_floor: int, stage_floor: int) -> void:
+	current_floor = starting_floor
+	staging_floor = stage_floor
+	movement_state = SimulationTypes.MovementState.IDLE
+	service_direction = SimulationTypes.Direction.IDLE
+	passengers.clear()
+	assigned_hall_requests.clear()
+	destination_requests.clear()
+	door_state = SimulationTypes.DoorState.CLOSED
+	target_floor = 0
+
+
+func configure_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: int) -> void:
+	allowed_min = mini(min_floor, max_floor)
+	allowed_max = maxi(min_floor, max_floor)
+	staging_floor = clampi(stage_floor, allowed_min, allowed_max)
+	behavior_rule = behavior
+
+
+func can_accept_hall_request(request: HallRequest) -> bool:
+	if request.floor < allowed_min or request.floor > allowed_max:
+		return false
+	if behavior_rule == Behavior.UP_ONLY and request.direction != SimulationTypes.Direction.UP:
+		return false
+	if behavior_rule == Behavior.DOWN_ONLY and request.direction != SimulationTypes.Direction.DOWN:
+		return false
+	for passenger: RushPassenger in request.waiting_passengers:
+		if passenger.destination_floor < allowed_min or passenger.destination_floor > allowed_max:
+			return false
+	return true
 
 
 func assign_hall_request(request: HallRequest) -> void:
@@ -71,6 +116,8 @@ func is_request_compatible(request: HallRequest) -> bool:
 func next_stop() -> int:
 	if service_direction == SimulationTypes.Direction.IDLE:
 		target_floor = _nearest_assigned_pickup_floor()
+		if target_floor == 0 and staging_floor != current_floor:
+			target_floor = staging_floor
 		return target_floor
 
 	var current_request := _request_at_floor_for_direction(service_direction)
