@@ -8,6 +8,7 @@ const LEVELS := [
 	{"name": "MORNING RUSH", "forecast": "Lobby-heavy upward traffic: Floor 1 → Floors 4–10.", "passengers": 50, "seed": 20260811, "pattern": "morning"},
 	{"name": "MIDDAY EXCHANGE", "forecast": "Mixed traffic: lobby arrivals and office-to-lobby returns.", "passengers": 54, "seed": 20260812, "pattern": "midday"},
 	{"name": "EVENING EXIT", "forecast": "Upper-floor-heavy downward traffic: Floors 4–10 → Floor 1.", "passengers": 58, "seed": 20260813, "pattern": "evening"},
+	{"name": "ADAPTIVE CHAOS", "forecast": "Unpredictable mixed traffic. Watch the wave and adjust your strategy.", "passengers": 60, "pattern": "adaptive"},
 ]
 
 enum Phase { PREPARATION, RUNNING, RESULTS }
@@ -27,6 +28,8 @@ var total_wait_time := 0.0
 var longest_wait_time := 0.0
 var current_level_index := 0
 var last_grade := 0.0
+var adaptive_chaos_seed := 0
+var adaptive_chaos_schedule: Array[Dictionary] = []
 
 @onready var elevators_root: Node2D = $Building/Elevators
 @onready var passengers_root: Node2D = $Building/Passengers
@@ -163,8 +166,11 @@ func _reset_wave_state() -> void:
 
 
 func _build_fixed_schedule() -> Array[Dictionary]:
-	var rng := RandomNumberGenerator.new()
 	var level := _current_level()
+	if str(level["pattern"]) == "adaptive":
+		return _get_adaptive_chaos_schedule()
+
+	var rng := RandomNumberGenerator.new()
 	rng.seed = int(level["seed"])
 	var schedule: Array[Dictionary] = []
 	for index in range(int(level["passengers"])):
@@ -176,6 +182,28 @@ func _build_fixed_schedule() -> Array[Dictionary]:
 		})
 	schedule.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.time < b.time)
 	return schedule
+
+
+func _get_adaptive_chaos_schedule() -> Array[Dictionary]:
+	if adaptive_chaos_schedule.is_empty():
+		var seed_rng := RandomNumberGenerator.new()
+		seed_rng.randomize()
+		adaptive_chaos_seed = seed_rng.randi()
+
+		var rng := RandomNumberGenerator.new()
+		rng.seed = adaptive_chaos_seed
+		var schedule: Array[Dictionary] = []
+		for index in range(int(_current_level()["passengers"])):
+			var demand := _create_level_demand(index, "adaptive", rng)
+			schedule.append({
+				"time": rng.randf_range(1.0, WAVE_SECONDS - 6.0),
+				"origin": demand["origin"],
+				"destination": demand["destination"],
+			})
+		schedule.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.time < b.time)
+		adaptive_chaos_schedule = schedule
+
+	return adaptive_chaos_schedule.duplicate(true)
 
 
 func _create_level_demand(index: int, pattern: String, rng: RandomNumberGenerator) -> Dictionary:
@@ -202,6 +230,17 @@ func _create_level_demand(index: int, pattern: String, rng: RandomNumberGenerato
 			else:
 				origin = rng.randi_range(5, 10)
 				destination = rng.randi_range(1, 4)
+		"adaptive":
+			match rng.randi_range(0, 2):
+				0:
+					origin = 1
+					destination = rng.randi_range(4, 10)
+				1:
+					origin = rng.randi_range(4, 10)
+					destination = 1
+				_:
+					origin = rng.randi_range(2, 10)
+					destination = rng.randi_range(1, 10)
 
 	while destination == origin:
 		destination = rng.randi_range(1, 10)
@@ -331,7 +370,10 @@ func _return_to_preparation() -> void:
 	results_panel.visible = false
 	preparation_panel.visible = true
 	phase_label.text = "PREPARATION — configure strategy for Level %d." % (current_level_index + 1)
-	simulation_hud.text = "Wave: ready — fixed seed %d" % _current_level()["seed"]
+	if str(_current_level()["pattern"]) == "adaptive":
+		simulation_hud.text = "Wave: ready — a new challenge will be generated when you begin."
+	else:
+		simulation_hud.text = "Wave: ready — fixed seed %d" % _current_level()["seed"]
 	_update_ui()
 
 
@@ -341,7 +383,10 @@ func _update_ui() -> void:
 		preparation_help.text = "Forecast: %s" % _current_level()["forecast"]
 		start_button.text = "START LEVEL %d — %d PASSENGERS" % [current_level_index + 1, _current_level()["passengers"]]
 		phase_label.text = "PREPARATION — configure coverage, staging, and behavior."
-		simulation_hud.text = "Wave: %d passengers over 60 seconds. Same demand every replay." % _current_level()["passengers"]
+		if str(_current_level()["pattern"]) == "adaptive":
+			simulation_hud.text = "Wave: %d passengers over 60 seconds. A new challenge locks in when started." % _current_level()["passengers"]
+		else:
+			simulation_hud.text = "Wave: %d passengers over 60 seconds. Same demand every replay." % _current_level()["passengers"]
 		restart_button.visible = false
 	elif phase == Phase.RUNNING:
 		phase_label.text = "AUTOMATIC SIMULATION — update strategy between elevator jobs."
