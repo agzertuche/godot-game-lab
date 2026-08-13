@@ -91,7 +91,7 @@ func _process(delta: float) -> void:
 	_reposition_waiting_passengers()
 	_update_ui()
 	_update_dispatch_debug()
-	if wave_time >= WAVE_SECONDS:
+	if wave_time >= WAVE_SECONDS and _wave_demand_is_drained():
 		_finish_wave()
 
 
@@ -292,6 +292,15 @@ func _record_arrival(passenger: RushPassenger, elevator: RushElevator) -> void:
 	passenger.visible = false
 
 
+func _wave_demand_is_drained() -> bool:
+	if spawn_index < passenger_schedule.size() or not hall_request_manager.get_active_requests().is_empty():
+		return false
+	for elevator in elevators:
+		if not elevator.controller.passengers.is_empty():
+			return false
+	return true
+
+
 func _dispatch_unassigned_requests() -> void:
 	var controllers: Array[ElevatorController] = []
 	for elevator in elevators:
@@ -490,7 +499,8 @@ func _update_ui() -> void:
 		restart_button.visible = false
 	elif phase == Phase.RUNNING:
 		phase_label.text = "AUTOMATIC SIMULATION — update strategy between elevator jobs."
-		simulation_hud.text = "Level %d: %02d / %02d   Spawned: %d / %d   Delivered: %d" % [current_level_index + 1, roundi(wave_time), roundi(WAVE_SECONDS), spawn_index, _current_level()["passengers"], delivered_count]
+		var wave_status := "DRAINING" if wave_time >= WAVE_SECONDS else "%02d / %02d" % [roundi(wave_time), roundi(WAVE_SECONDS)]
+		simulation_hud.text = "Level %d: %s   Spawned: %d / %d   Delivered: %d" % [current_level_index + 1, wave_status, spawn_index, _current_level()["passengers"], delivered_count]
 		preparation_help.text = "Apply queues a change. It takes effect at idle; each elevator then cools down for 8 seconds."
 		restart_button.visible = true
 	else:
@@ -515,7 +525,22 @@ func _update_dispatch_debug() -> void:
 		for floor: int in controller.destination_requests:
 			destinations.append(str(floor))
 		lines.append("E%d F%d %s %d/%d  H[%s] D[%s] →%d" % [controller.elevator_id, controller.current_floor, direction, controller.passengers.size(), controller.capacity, ",".join(hall_floors), ",".join(destinations), controller.target_floor])
+	var shown_waiters := 0
+	for passenger in passengers:
+		if not passenger.is_waiting() or shown_waiters >= 1:
+			continue
+		lines.append("P F%d→F%d %s %.0fs E%d" % [passenger.origin_floor, passenger.destination_floor, _passenger_state_name(passenger.state), passenger.wait_time, passenger.assigned_elevator_id])
+		shown_waiters += 1
 	dispatch_debug.text = "\n".join(lines)
+
+
+func _passenger_state_name(passenger_state: int) -> String:
+	match passenger_state:
+		SimulationTypes.PassengerState.ASSIGNED:
+			return "ASSIGNED"
+		SimulationTypes.PassengerState.WAITING:
+			return "WAITING"
+	return "ACTIVE"
 
 
 func _update_results_actions() -> void:

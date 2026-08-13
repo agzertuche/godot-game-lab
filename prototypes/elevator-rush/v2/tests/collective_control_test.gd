@@ -34,10 +34,12 @@ func _init() -> void:
 	_test_dispatcher_breaks_ties_by_elevator_id()
 	_test_dispatcher_sorts_requests_before_costs_can_change()
 	_test_dispatcher_skips_full_controller()
+	_test_dispatcher_reserves_pickup_capacity_across_calls()
 	_test_stop_exits_before_boarding_when_car_is_full()
 	_test_stop_reoffers_excess_capacity_demand()
 	_test_stop_deduplicates_boarded_destinations()
 	_test_stop_leaves_incompatible_direction_waiting()
+	_test_stop_releases_late_out_of_zone_shared_waiter()
 	_test_arrival_signal_is_emitted_once_per_stop_lifecycle()
 	_test_deterministic_two_car_collective_scenario()
 	if _failures.is_empty():
@@ -313,6 +315,24 @@ func _test_dispatcher_skips_full_controller() -> void:
 	_expect(request.assigned_elevator_id == 2, "a full controller must be skipped even when it has the lower travel cost")
 
 
+func _test_dispatcher_reserves_pickup_capacity_across_calls() -> void:
+	var dispatcher = _new_dispatcher()
+	var manager := HallRequestManager.new(10)
+	var near_controller := _new_controller(1, SimulationTypes.Direction.IDLE, 1)
+	var far_controller := _new_controller(10, SimulationTypes.Direction.IDLE, 2)
+	near_controller.capacity = 2
+	far_controller.capacity = 2
+	var first_request = manager.register_waiting_passenger(_passenger(3, 7, 0.0), 0.0)
+	manager.register_waiting_passenger(_passenger(3, 8, 0.0), 0.0)
+	var second_request = manager.register_waiting_passenger(_passenger(4, 8, 0.0), 0.0)
+	manager.register_waiting_passenger(_passenger(4, 9, 0.0), 0.0)
+	var controllers: Array[ElevatorController] = [near_controller, far_controller]
+	dispatcher.assign_unassigned_requests(controllers, manager.get_unassigned_requests(), 1.0)
+	_expect(first_request.assigned_elevator_id == 1, "nearest controller should receive the first reservable hall request")
+	_expect(near_controller.available_reservation_slots() == 0, "assigned shared waiters should reserve the nearby car's pickup capacity")
+	_expect(second_request.assigned_elevator_id == 2, "second hall call should distribute to a car with reservable capacity")
+
+
 func _test_stop_exits_before_boarding_when_car_is_full() -> void:
 	var manager := HallRequestManager.new(10)
 	var controller := _new_controller(5, SimulationTypes.Direction.UP, 1)
@@ -387,6 +407,24 @@ func _test_stop_leaves_incompatible_direction_waiting() -> void:
 	_expect(controller.passengers.is_empty(), "UP service must not board a DOWN passenger")
 	_expect(down_passenger.state == SimulationTypes.PassengerState.ASSIGNED, "incompatible passenger should remain assigned for a later reverse")
 	_expect(request.is_active(), "incompatible hall request must remain active")
+
+
+func _test_stop_releases_late_out_of_zone_shared_waiter() -> void:
+	var manager := HallRequestManager.new(10)
+	var controller := _new_controller(3, SimulationTypes.Direction.UP, 1)
+	controller.configure_strategy(1, 5, 3, ElevatorController.Behavior.NORMAL)
+	var local_passenger := _passenger(3, 5, 0.0)
+	var request = manager.register_waiting_passenger(local_passenger, 0.0)
+	controller.assign_hall_request(request)
+	var out_of_zone_passenger := _passenger(3, 8, 1.0)
+	manager.register_waiting_passenger(out_of_zone_passenger, 1.0)
+
+	_arrive_for_service(controller, 3)
+	controller.process_stop(manager, 10.0)
+	_expect(local_passenger.state == SimulationTypes.PassengerState.RIDING, "zone-compatible passenger should board")
+	_expect(out_of_zone_passenger.state == SimulationTypes.PassengerState.WAITING, "late out-of-zone shared waiter must remain active demand")
+	_expect(out_of_zone_passenger.assigned_elevator_id == 0, "out-of-zone waiter should be released for another eligible car")
+	_expect(request.assigned_elevator_id == 0 and request.is_active(), "incomplete out-of-zone shared request should be reoffered")
 
 
 func _test_arrival_signal_is_emitted_once_per_stop_lifecycle() -> void:

@@ -53,6 +53,29 @@ func has_capacity() -> bool:
 	return passengers.size() < capacity
 
 
+## Assigned landing calls reserve seats before a car reaches them. A large
+## shared call reserves at most the car's capacity, so other requests can be
+## dispatched to cars that can actually contribute to throughput.
+func reserved_pickup_count() -> int:
+	var reserved := 0
+	var remaining_capacity := maxi(0, capacity - passengers.size())
+	for request: HallRequest in assigned_hall_requests:
+		if not request.is_active() or remaining_capacity == 0:
+			continue
+		var request_reservation := mini(request.waiting_passengers.size(), remaining_capacity)
+		reserved += request_reservation
+		remaining_capacity -= request_reservation
+	return reserved
+
+
+func available_reservation_slots() -> int:
+	return maxi(0, capacity - passengers.size() - reserved_pickup_count())
+
+
+func can_reserve_hall_request(request: HallRequest) -> bool:
+	return available_reservation_slots() > 0 and can_accept_hall_request(request)
+
+
 ## Reset is intentionally explicit so a replay cannot retain car calls, hall
 ## assignments, or a direction from its previous run.
 func reset(starting_floor: int, stage_floor: int) -> void:
@@ -307,7 +330,7 @@ func _board_compatible_passengers(request_manager: HallRequestManager) -> Array[
 		for passenger: RushPassenger in request.waiting_passengers.duplicate():
 			if not has_capacity():
 				break
-			if passenger.requested_direction != boarding_direction:
+			if not _can_board_passenger(passenger, boarding_direction):
 				continue
 
 			passenger.state = SimulationTypes.PassengerState.BOARDING
@@ -321,11 +344,23 @@ func _board_compatible_passengers(request_manager: HallRequestManager) -> Array[
 
 		if not request.is_active():
 			remove_hall_request(request)
-		elif not has_capacity():
+		else:
+			# Every remaining passenger was either beyond this car's capacity or
+			# became ineligible (for example, a late shared-call passenger whose
+			# destination lies outside this car's zone). Reoffer the live call.
 			remove_hall_request(request)
 			request_manager.release_request_assignment(request)
 
 	return boarded
+
+
+func _can_board_passenger(passenger: RushPassenger, boarding_direction: int) -> bool:
+	return passenger.origin_floor == current_floor \
+		and passenger.requested_direction == boarding_direction \
+		and passenger.origin_floor >= allowed_min \
+		and passenger.origin_floor <= allowed_max \
+		and passenger.destination_floor >= allowed_min \
+		and passenger.destination_floor <= allowed_max
 
 
 func _adopt_pickup_direction_if_idle() -> void:

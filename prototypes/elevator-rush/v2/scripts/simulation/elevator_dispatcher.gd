@@ -24,7 +24,7 @@ func calculate_assignment_cost(
 	var estimated_pickup_time := float(absi(request.floor - controller.current_floor)) * ESTIMATED_PICKUP_TIME_PER_FLOOR
 	var intermediate_stop_penalty := float(_count_intermediate_stops(controller, request)) * INTERMEDIATE_STOP_PENALTY
 	var direction_mismatch_penalty := DIRECTION_MISMATCH_PENALTY if _requires_direction_change(controller, request) else 0.0
-	var load_penalty := _load_ratio(controller) * LOAD_PENALTY
+	var load_penalty := _reserved_load_ratio(controller) * LOAD_PENALTY
 	var waiting_time_priority := request.waiting_time(now) * WAITING_TIME_PRIORITY
 	var direction_bias_bonus := _direction_bias_bonus(controller, request)
 	return estimated_pickup_time + intermediate_stop_penalty + direction_mismatch_penalty + load_penalty - waiting_time_priority - direction_bias_bonus
@@ -44,7 +44,7 @@ func assign_unassigned_requests(
 		var selected_controller: ElevatorController = null
 		var selected_cost := INF
 		for controller: ElevatorController in controllers:
-			if not controller.has_capacity() or not controller.can_accept_hall_request(request):
+			if not controller.can_reserve_hall_request(request):
 				continue
 			var cost := calculate_assignment_cost(controller, request, now)
 			if _should_select(controller, cost, selected_controller, selected_cost):
@@ -77,10 +77,10 @@ func _requires_direction_change(controller: ElevatorController, request: HallReq
 	return request.direction != SimulationTypes.Direction.DOWN or request.floor > controller.current_floor
 
 
-func _load_ratio(controller: ElevatorController) -> float:
+func _reserved_load_ratio(controller: ElevatorController) -> float:
 	if controller.capacity <= 0:
 		return 1.0
-	return float(controller.passengers.size()) / float(controller.capacity)
+	return float(controller.passengers.size() + controller.reserved_pickup_count()) / float(controller.capacity)
 
 
 func _direction_bias_bonus(controller: ElevatorController, request: HallRequest) -> float:
