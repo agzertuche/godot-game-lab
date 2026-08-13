@@ -9,8 +9,12 @@ The configuration of an elevator's floor coverage, staging floor, and behavior r
 _Avoid_: Manual command, route
 
 **Wave**:
-A fixed, replayable set of passenger demand released over one timed level.
-_Avoid_: Day, random run
+A timed set of passenger demand released over one level. Levels 1–3 use fixed seeds; Adaptive Chaos is generated once per challenge and then remains replayable.
+_Avoid_: Day
+
+**Adaptive Challenge**:
+Level 4, `ADAPTIVE CHAOS`: an intentionally unpredictable, mixed-traffic wave. It generates its passenger schedule once upon unlock or when the player selects **NEW CHALLENGE**, then preserves that schedule for restart, retry, and **REPLAY SAME CHALLENGE**.
+_Avoid_: Fully random retry, daily challenge
 
 **Dispatch**:
 The autonomous decision process that assigns passengers and selects an elevator's next stop.
@@ -37,7 +41,7 @@ A passenger already riding in, or claimed by, an elevator. A later strategy chan
 _Avoid_: Reassignable passenger, stranded rider
 
 **Grade**:
-The weighted 0–10 result used to evaluate a strategy and unlock the next wave.
+The weighted 0–10 result used to evaluate a strategy and unlock the next wave. A grade of 8.0 or higher passes a level.
 _Avoid_: Score, rating
 
 **Change Summary**:
