@@ -2,11 +2,20 @@ extends SceneTree
 
 const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 
+var _failures: Array[String] = []
+
 
 func _init() -> void:
 	_test_shared_simulation_enums()
-	print("collective_control_test: PASS")
-	quit(0)
+	if _failures.is_empty():
+		print("collective_control_test: PASS")
+		quit(0)
+		return
+
+	for failure: String in _failures:
+		push_error(failure)
+	print("collective_control_test: FAIL (%d assertions)" % _failures.size())
+	quit(1)
 
 
 func _test_shared_simulation_enums() -> void:
@@ -20,5 +29,4 @@ func _test_shared_simulation_enums() -> void:
 
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
-		push_error(message)
-		quit(1)
+		_failures.append(message)
