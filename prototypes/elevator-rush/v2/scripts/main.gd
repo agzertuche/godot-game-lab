@@ -332,6 +332,7 @@ func _return_to_preparation() -> void:
 	preparation_panel.visible = true
 	phase_label.text = "PREPARATION — configure strategy for Level %d." % (current_level_index + 1)
 	simulation_hud.text = "Wave: ready — fixed seed %d" % _current_level()["seed"]
+	_update_ui()
 
 
 func _update_ui() -> void:
