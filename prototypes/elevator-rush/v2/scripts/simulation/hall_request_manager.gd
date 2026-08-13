@@ -6,6 +6,7 @@ const HallRequest := preload("res://scripts/simulation/hall_request.gd")
 
 signal hall_request_created(request: HallRequest)
 signal hall_request_completed(request: HallRequest)
+signal request_completed(request: HallRequest)
 
 var _floor_count: int
 var _requests_by_key: Dictionary = {}
@@ -42,6 +43,7 @@ func remove_passenger_from_request(passenger: RushPassenger) -> void:
 
 	_requests_by_key.erase(key)
 	hall_request_completed.emit(request)
+	request_completed.emit(request)
 
 
 func remove_passenger(passenger: RushPassenger) -> void:

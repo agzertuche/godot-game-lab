@@ -11,7 +11,6 @@ const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 enum State { IDLE, MOVING, BOARDING }
 enum Behavior { NORMAL, UP_BIAS, DOWN_BIAS, UP_ONLY, DOWN_ONLY }
 
-const SPEED := 115.0
 const STRATEGY_COOLDOWN_SECONDS := 8.0
 
 var elevator_id := 1
@@ -81,17 +80,6 @@ func has_capacity() -> bool:
 	return controller == null or controller.has_capacity()
 
 
-## Advances only the visible cabin toward the controller's already chosen
-## target. Returning true means Main must run the simulation stop lifecycle.
-func advance_motion(delta: float) -> bool:
-	if controller == null or controller.movement_state != SimulationTypes.MovementState.MOVING:
-		return false
-	busy_time += delta
-	var target_y := _floor_y(controller.target_floor)
-	position.y = move_toward(position.y, target_y, SPEED * delta)
-	return is_equal_approx(position.y, target_y)
-
-
 func tick_strategy_cooldown(delta: float) -> void:
 	strategy_cooldown_left = maxf(0.0, strategy_cooldown_left - delta)
 
@@ -137,11 +125,18 @@ func sync_presentation() -> void:
 		last_travel_direction = direction
 	state = State.MOVING if controller.movement_state == SimulationTypes.MovementState.MOVING else State.IDLE
 	passengers = controller.passengers
+	position.y = _floor_y_for_travel_position(controller.travel_floor)
 	queue_redraw()
 
 
 func _floor_y(floor: int) -> float:
 	return floor_y_positions[floor - 1]
+
+
+func _floor_y_for_travel_position(floor_position: float) -> float:
+	var lower_floor := clampi(floori(floor_position), 1, floor_y_positions.size())
+	var upper_floor := clampi(ceili(floor_position), 1, floor_y_positions.size())
+	return lerpf(_floor_y(lower_floor), _floor_y(upper_floor), floor_position - float(lower_floor))
 
 
 func _draw() -> void:

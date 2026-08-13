@@ -9,6 +9,7 @@ const ELEVATOR_DISPATCHER_PATH := "res://scripts/simulation/elevator_dispatcher.
 
 var _failures: Array[String] = []
 var _completed_request_count := 0
+var _request_completed_event_count := 0
 var _arrival_signal_count := 0
 
 
@@ -18,6 +19,7 @@ func _init() -> void:
 	_test_opposite_directions_create_separate_hall_requests()
 	_test_impossible_boundary_requests_are_rejected()
 	_test_request_remains_active_until_last_passenger_leaves()
+	_test_request_completed_event_is_exposed()
 	_test_upward_collective_control_orders_compatible_stops()
 	_test_downward_collective_control_orders_compatible_stops()
 	_test_idle_controller_travels_to_pickup_before_adopting_request_direction()
@@ -109,6 +111,16 @@ func _test_request_remains_active_until_last_passenger_leaves() -> void:
 	_expect(_completed_request_count == 1, "final removal should emit hall_request_completed once")
 
 
+func _test_request_completed_event_is_exposed() -> void:
+	var manager := HallRequestManager.new(10)
+	var passenger := _passenger(4, 8, 0.0)
+	_request_completed_event_count = 0
+	manager.request_completed.connect(_record_request_completed)
+	manager.register_waiting_passenger(passenger, 0.0)
+	manager.remove_passenger_from_request(passenger)
+	_expect(_request_completed_event_count == 1, "request_completed should be available for simulation observers")
+
+
 func _test_upward_collective_control_orders_compatible_stops() -> void:
 	var controller = _new_controller(2, SimulationTypes.Direction.UP)
 	controller.assign_hall_request(_request(3, SimulationTypes.Direction.UP))
@@ -174,8 +186,11 @@ func _test_controller_owns_movement_state_transitions() -> void:
 	controller.begin_moving_to(5)
 	_expect(controller.movement_state == SimulationTypes.MovementState.MOVING, "controller should enter MOVING when it accepts a target")
 	_expect(controller.target_floor == 5, "controller should own the active target floor")
-	controller.arrive_at(5)
+	_expect(not controller.advance_travel(0.25), "logical travel should not arrive before reaching the target")
+	_expect(controller.current_floor == 2, "current floor should remain discrete while travelling")
+	_expect(controller.advance_travel(2.0), "controller should report a logical arrival without a visual callback")
 	_expect(controller.movement_state == SimulationTypes.MovementState.STOPPED, "controller should enter STOPPED when it arrives")
+	_expect(controller.current_floor == 5, "logical travel should update the current floor on arrival")
 	controller.complete_stop()
 	_expect(controller.movement_state == SimulationTypes.MovementState.IDLE, "controller should return to IDLE after stop processing")
 
@@ -400,6 +415,10 @@ func _passenger(origin: int, destination: int, request_time: float) -> RushPasse
 
 func _record_request_completion(_request) -> void:
 	_completed_request_count += 1
+
+
+func _record_request_completed(_request) -> void:
+	_request_completed_event_count += 1
 
 
 func _record_elevator_arrival(_floor: int) -> void:

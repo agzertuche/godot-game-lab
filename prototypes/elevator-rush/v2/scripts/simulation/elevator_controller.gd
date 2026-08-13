@@ -13,6 +13,7 @@ signal passenger_exited(passenger: RushPassenger, floor: int)
 signal elevator_direction_changed(previous_direction: int, new_direction: int)
 
 const CAPACITY := 4
+const TRAVEL_FLOORS_PER_SECOND := 2.05
 const Behavior := {
 	"NORMAL": 0,
 	"UP_BIAS": 1,
@@ -31,6 +32,7 @@ var assigned_hall_requests: Array[HallRequest] = []
 var destination_requests: Dictionary = {}
 var door_state := SimulationTypes.DoorState.CLOSED
 var target_floor := 0
+var travel_floor := 1.0
 var allowed_min := 1
 var allowed_max := 10
 var staging_floor := 1
@@ -40,6 +42,7 @@ var behavior_rule := Behavior.NORMAL
 func _init(identifier: int = 0, starting_floor: int = 1) -> void:
 	elevator_id = identifier
 	current_floor = starting_floor
+	travel_floor = float(starting_floor)
 
 
 func has_capacity() -> bool:
@@ -58,6 +61,7 @@ func reset(starting_floor: int, stage_floor: int) -> void:
 	destination_requests.clear()
 	door_state = SimulationTypes.DoorState.CLOSED
 	target_floor = 0
+	travel_floor = float(starting_floor)
 
 
 func configure_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: int) -> void:
@@ -148,7 +152,20 @@ func begin_moving_to(floor: int) -> void:
 	if floor == current_floor or floor <= 0:
 		return
 	target_floor = floor
+	travel_floor = float(current_floor)
 	movement_state = SimulationTypes.MovementState.MOVING
+
+
+## Logical travel belongs to the simulation. Presentation reads travel_floor
+## but cannot decide when the car has reached a stop.
+func advance_travel(delta: float) -> bool:
+	if movement_state != SimulationTypes.MovementState.MOVING or target_floor <= 0:
+		return false
+	travel_floor = move_toward(travel_floor, float(target_floor), TRAVEL_FLOORS_PER_SECOND * delta)
+	if not is_equal_approx(travel_floor, float(target_floor)):
+		return false
+	arrive_at(target_floor)
+	return true
 
 
 func recalculate_service_direction() -> void:
@@ -177,6 +194,7 @@ func recalculate_service_direction() -> void:
 
 func arrive_at(floor: int) -> void:
 	current_floor = floor
+	travel_floor = float(floor)
 	target_floor = 0
 	movement_state = SimulationTypes.MovementState.STOPPED
 	elevator_arrived.emit(current_floor)

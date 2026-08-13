@@ -302,8 +302,10 @@ func _dispatch_unassigned_requests() -> void:
 func _tick_elevator(elevator: RushElevator, delta: float) -> void:
 	var controller := elevator.controller
 	if controller.movement_state == SimulationTypes.MovementState.MOVING:
-		if elevator.advance_motion(delta):
-			controller.arrive_at(controller.target_floor)
+		controller.advance_travel(delta)
+		elevator.busy_time += delta
+		elevator.sync_presentation()
+		if controller.movement_state == SimulationTypes.MovementState.STOPPED:
 			elevator.stop_count += 1
 			_process_controller_stop(elevator)
 		return
@@ -314,6 +316,7 @@ func _tick_elevator(elevator: RushElevator, delta: float) -> void:
 		return
 	if next_stop == controller.current_floor:
 		controller.arrive_at(next_stop)
+		elevator.stop_count += 1
 		_process_controller_stop(elevator)
 		return
 	controller.begin_moving_to(next_stop)
