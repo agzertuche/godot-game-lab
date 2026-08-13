@@ -44,12 +44,18 @@ var last_grade := 0.0
 @onready var min_boxes: Array[SpinBox] = [$UI/PreparationPanel/E1Min, $UI/PreparationPanel/E2Min, $UI/PreparationPanel/E3Min]
 @onready var max_boxes: Array[SpinBox] = [$UI/PreparationPanel/E1Max, $UI/PreparationPanel/E2Max, $UI/PreparationPanel/E3Max]
 @onready var staging_boxes: Array[SpinBox] = [$UI/PreparationPanel/E1Stage, $UI/PreparationPanel/E2Stage, $UI/PreparationPanel/E3Stage]
+@onready var behavior_boxes: Array[OptionButton] = [$UI/PreparationPanel/E1Mode, $UI/PreparationPanel/E2Mode, $UI/PreparationPanel/E3Mode]
+@onready var apply_buttons: Array[Button] = [$UI/PreparationPanel/E1Apply, $UI/PreparationPanel/E2Apply, $UI/PreparationPanel/E3Apply]
+@onready var strategy_statuses: Array[Label] = [$UI/PreparationPanel/E1Status, $UI/PreparationPanel/E2Status, $UI/PreparationPanel/E3Status]
 
 
 func _ready() -> void:
 	start_button.pressed.connect(_start_wave)
 	restart_button.pressed.connect(_restart_level)
 	replay_button.pressed.connect(_on_results_button_pressed)
+	for index in range(ELEVATOR_COUNT):
+		_apply_behavior_options(behavior_boxes[index])
+		apply_buttons[index].pressed.connect(_request_live_strategy.bind(index))
 	_create_elevators()
 	_apply_ui_contrast($UI)
 	_update_ui()
@@ -105,9 +111,8 @@ func _start_wave() -> void:
 	_apply_strategies()
 	_reset_wave_state()
 	phase = Phase.RUNNING
-	preparation_panel.visible = false
+	preparation_panel.visible = true
 	results_panel.visible = false
-	_set_strategy_controls_enabled(false)
 	_update_ui()
 
 
@@ -124,7 +129,8 @@ func _apply_strategies() -> void:
 		var minimum := roundi(min_boxes[index].value)
 		var maximum := roundi(max_boxes[index].value)
 		var staging := roundi(staging_boxes[index].value)
-		elevators[index].set_strategy(minimum, maximum, staging)
+		var behavior := behavior_boxes[index].selected
+		elevators[index].set_strategy(minimum, maximum, staging, behavior)
 		elevators[index].current_floor = elevators[index].staging_floor
 		elevators[index].target_floor = elevators[index].staging_floor
 		elevators[index].position.y = floor_y_positions[elevators[index].staging_floor - 1]
@@ -145,6 +151,7 @@ func _reset_wave_state() -> void:
 		elevator.busy_time = 0.0
 		elevator.transported_count = 0
 		elevator.stop_count = 0
+		elevator.clear_live_strategy_state()
 		elevator.queue_redraw()
 
 	wave_time = 0.0
@@ -274,6 +281,7 @@ func _results_text() -> String:
 			elevator.transported_count,
 			elevator.stop_count,
 		]
+		text += "\n    Final: %s  •  Live changes: %d" % [elevator.strategy_summary(), elevator.strategy_change_count]
 	return text
 
 
@@ -322,7 +330,6 @@ func _return_to_preparation() -> void:
 	phase = Phase.PREPARATION
 	results_panel.visible = false
 	preparation_panel.visible = true
-	_set_strategy_controls_enabled(true)
 	phase_label.text = "PREPARATION — configure strategy for Level %d." % (current_level_index + 1)
 	simulation_hud.text = "Wave: ready — fixed seed %d" % _current_level()["seed"]
 
@@ -332,17 +339,19 @@ func _update_ui() -> void:
 		level_label.text = "LEVEL %d / %d — %s" % [current_level_index + 1, LEVELS.size(), _current_level()["name"]]
 		preparation_help.text = "Forecast: %s" % _current_level()["forecast"]
 		start_button.text = "START LEVEL %d — %d PASSENGERS" % [current_level_index + 1, _current_level()["passengers"]]
-		phase_label.text = "PREPARATION — configure coverage and staging."
+		phase_label.text = "PREPARATION — configure coverage, staging, and behavior."
 		simulation_hud.text = "Wave: %d passengers over 60 seconds. Same demand every replay." % _current_level()["passengers"]
 		restart_button.visible = false
 	elif phase == Phase.RUNNING:
-		phase_label.text = "AUTOMATIC SIMULATION — strategy is locked."
+		phase_label.text = "AUTOMATIC SIMULATION — update strategy between elevator jobs."
 		simulation_hud.text = "Level %d: %02d / %02d   Spawned: %d / %d   Delivered: %d" % [current_level_index + 1, roundi(wave_time), roundi(WAVE_SECONDS), spawn_index, _current_level()["passengers"], delivered_count]
+		preparation_help.text = "Apply queues a change. It takes effect at idle; each elevator then cools down for 8 seconds."
 		restart_button.visible = true
 	else:
 		phase_label.text = "RESULTS — compare throughput, waits, and elevator utilization."
 		simulation_hud.text = "Wave complete. Score 8.0+ to unlock the next level."
 		restart_button.visible = false
+	_update_strategy_panel()
 
 
 func _update_results_actions() -> void:
@@ -362,18 +371,54 @@ func _current_level() -> Dictionary:
 	return LEVELS[current_level_index]
 
 
-func _set_strategy_controls_enabled(enabled: bool) -> void:
-	start_button.disabled = not enabled
-	for box in min_boxes:
-		box.editable = enabled
-	for box in max_boxes:
-		box.editable = enabled
-	for box in staging_boxes:
-		box.editable = enabled
+func _request_live_strategy(index: int) -> void:
+	if phase != Phase.RUNNING or elevators[index].strategy_cooldown_left > 0.0:
+		return
+	elevators[index].request_strategy(
+		roundi(min_boxes[index].value),
+		roundi(max_boxes[index].value),
+		roundi(staging_boxes[index].value),
+		behavior_boxes[index].selected
+	)
+	_update_strategy_panel()
+
+
+func _update_strategy_panel() -> void:
+	var is_preparation := phase == Phase.PREPARATION
+	start_button.visible = is_preparation
+	for index in range(ELEVATOR_COUNT):
+		var elevator := elevators[index]
+		var can_edit := is_preparation or (phase == Phase.RUNNING and elevator.strategy_cooldown_left <= 0.0)
+		min_boxes[index].editable = can_edit
+		max_boxes[index].editable = can_edit
+		staging_boxes[index].editable = can_edit
+		behavior_boxes[index].disabled = not can_edit
+		apply_buttons[index].visible = phase == Phase.RUNNING
+		apply_buttons[index].disabled = not can_edit
+		if is_preparation:
+			strategy_statuses[index].text = "E%d  SETUP" % elevator.elevator_id
+		elif phase == Phase.RUNNING:
+			var pending := elevator.pending_strategy_summary()
+			var status_text := "NOW: " + elevator.strategy_summary()
+			if not pending.is_empty():
+				status_text += "  →  PENDING: " + pending
+			strategy_statuses[index].text = "E%d  %s" % [elevator.elevator_id, status_text]
+			apply_buttons[index].text = "COOLDOWN %.0fs" % ceilf(elevator.strategy_cooldown_left) if elevator.strategy_cooldown_left > 0.0 else "APPLY"
+		else:
+			strategy_statuses[index].text = "E%d  FINAL: %s" % [elevator.elevator_id, elevator.strategy_summary()]
+
+
+func _apply_behavior_options(box: OptionButton) -> void:
+	box.clear()
+	box.add_item("NORMAL", RushElevator.Behavior.NORMAL)
+	box.add_item("UP BIAS", RushElevator.Behavior.UP_BIAS)
+	box.add_item("DOWN BIAS", RushElevator.Behavior.DOWN_BIAS)
+	box.add_item("UP ONLY", RushElevator.Behavior.UP_ONLY)
+	box.add_item("DOWN ONLY", RushElevator.Behavior.DOWN_ONLY)
 
 
 func _apply_ui_contrast(node: Node) -> void:
-	if node is Label or node is Button or node is SpinBox:
+	if node is Label or node is Button or node is SpinBox or node is OptionButton:
 		var control := node as Control
 		control.add_theme_color_override("font_color", Color("f8fafc"))
 		control.add_theme_color_override("font_outline_color", Color("020617"))

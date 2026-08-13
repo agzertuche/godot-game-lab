@@ -69,131 +69,170 @@ text = "LEVEL 1 / 3 — MORNING RUSH"
 
 [node name="Help" type="Label" parent="UI/PreparationPanel"]
 offset_left = 12.0
-offset_top = 34.0
+offset_top = 31.0
 offset_right = 560.0
-offset_bottom = 54.0
+offset_bottom = 49.0
 theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
-text = "Forecast: lobby-heavy upward traffic. Strategy is locked during the wave."
+text = "Forecast: lobby-heavy upward traffic. Use Apply to queue live changes."
 
 [node name="Header" type="Label" parent="UI/PreparationPanel"]
 offset_left = 12.0
-offset_top = 57.0
+offset_top = 52.0
 offset_right = 560.0
-offset_bottom = 77.0
+offset_bottom = 70.0
 theme_override_colors/font_color = Color(0.6, 0.75, 0.95, 1)
-text = "ELEVATOR          MIN       MAX      STAGING"
+text = "                 MIN    MAX   STAGE        BEHAVIOR                  APPLY"
 
-[node name="Elevator1Label" type="Label" parent="UI/PreparationPanel"]
+[node name="E1Status" type="Label" parent="UI/PreparationPanel"]
 offset_left = 14.0
-offset_top = 87.0
-offset_right = 110.0
-offset_bottom = 113.0
+offset_top = 73.0
+offset_right = 560.0
+offset_bottom = 91.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "Elevator 1"
+text = "E1  SETUP"
 
 [node name="E1Min" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 150.0
-offset_top = 83.0
-offset_right = 242.0
-offset_bottom = 115.0
+offset_left = 14.0
+offset_top = 93.0
+offset_right = 66.0
+offset_bottom = 123.0
 min_value = 1.0
 max_value = 10.0
 value = 1.0
 
 [node name="E1Max" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 276.0
-offset_top = 83.0
-offset_right = 368.0
-offset_bottom = 115.0
+offset_left = 72.0
+offset_top = 93.0
+offset_right = 124.0
+offset_bottom = 123.0
 min_value = 1.0
 max_value = 10.0
 value = 5.0
 
 [node name="E1Stage" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 430.0
-offset_top = 83.0
-offset_right = 522.0
-offset_bottom = 115.0
+offset_left = 130.0
+offset_top = 93.0
+offset_right = 182.0
+offset_bottom = 123.0
 min_value = 1.0
 max_value = 10.0
 value = 1.0
 
-[node name="Elevator2Label" type="Label" parent="UI/PreparationPanel"]
+[node name="E1Mode" type="OptionButton" parent="UI/PreparationPanel"]
+offset_left = 188.0
+offset_top = 93.0
+offset_right = 400.0
+offset_bottom = 123.0
+
+[node name="E1Apply" type="Button" parent="UI/PreparationPanel"]
+offset_left = 410.0
+offset_top = 93.0
+offset_right = 562.0
+offset_bottom = 123.0
+text = "APPLY"
+
+[node name="E2Status" type="Label" parent="UI/PreparationPanel"]
 offset_left = 14.0
-offset_top = 125.0
-offset_right = 110.0
-offset_bottom = 151.0
+offset_top = 127.0
+offset_right = 560.0
+offset_bottom = 145.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "Elevator 2"
+text = "E2  SETUP"
 
 [node name="E2Min" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 150.0
-offset_top = 121.0
-offset_right = 242.0
-offset_bottom = 153.0
+offset_left = 14.0
+offset_top = 147.0
+offset_right = 66.0
+offset_bottom = 177.0
 min_value = 1.0
 max_value = 10.0
 value = 1.0
 
 [node name="E2Max" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 276.0
-offset_top = 121.0
-offset_right = 368.0
-offset_bottom = 153.0
+offset_left = 72.0
+offset_top = 147.0
+offset_right = 124.0
+offset_bottom = 177.0
 min_value = 1.0
 max_value = 10.0
 value = 10.0
 
 [node name="E2Stage" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 430.0
-offset_top = 121.0
-offset_right = 522.0
-offset_bottom = 153.0
+offset_left = 130.0
+offset_top = 147.0
+offset_right = 182.0
+offset_bottom = 177.0
 min_value = 1.0
 max_value = 10.0
 value = 5.0
 
-[node name="Elevator3Label" type="Label" parent="UI/PreparationPanel"]
+[node name="E2Mode" type="OptionButton" parent="UI/PreparationPanel"]
+offset_left = 188.0
+offset_top = 147.0
+offset_right = 400.0
+offset_bottom = 177.0
+
+[node name="E2Apply" type="Button" parent="UI/PreparationPanel"]
+offset_left = 410.0
+offset_top = 147.0
+offset_right = 562.0
+offset_bottom = 177.0
+text = "APPLY"
+
+[node name="E3Status" type="Label" parent="UI/PreparationPanel"]
 offset_left = 14.0
-offset_top = 163.0
-offset_right = 110.0
-offset_bottom = 189.0
+offset_top = 181.0
+offset_right = 560.0
+offset_bottom = 199.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "Elevator 3"
+text = "E3  SETUP"
 
 [node name="E3Min" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 150.0
-offset_top = 159.0
-offset_right = 242.0
-offset_bottom = 191.0
+offset_left = 14.0
+offset_top = 201.0
+offset_right = 66.0
+offset_bottom = 231.0
 min_value = 1.0
 max_value = 10.0
 value = 6.0
 
 [node name="E3Max" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 276.0
-offset_top = 159.0
-offset_right = 368.0
-offset_bottom = 191.0
+offset_left = 72.0
+offset_top = 201.0
+offset_right = 124.0
+offset_bottom = 231.0
 min_value = 1.0
 max_value = 10.0
 value = 10.0
 
 [node name="E3Stage" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 430.0
-offset_top = 159.0
-offset_right = 522.0
-offset_bottom = 191.0
+offset_left = 130.0
+offset_top = 201.0
+offset_right = 182.0
+offset_bottom = 231.0
 min_value = 1.0
 max_value = 10.0
 value = 8.0
 
+[node name="E3Mode" type="OptionButton" parent="UI/PreparationPanel"]
+offset_left = 188.0
+offset_top = 201.0
+offset_right = 400.0
+offset_bottom = 231.0
+
+[node name="E3Apply" type="Button" parent="UI/PreparationPanel"]
+offset_left = 410.0
+offset_top = 201.0
+offset_right = 562.0
+offset_bottom = 231.0
+text = "APPLY"
+
 [node name="StartButton" type="Button" parent="UI/PreparationPanel"]
 offset_left = 14.0
-offset_top = 214.0
+offset_top = 236.0
 offset_right = 562.0
-offset_bottom = 260.0
-theme_override_font_sizes/font_size = 20
+offset_bottom = 268.0
+theme_override_font_sizes/font_size = 18
 text = "START MORNING RUSH — 50 PASSENGERS"
 
 [node name="ResultsPanel" type="ColorRect" parent="UI"]
