@@ -231,7 +231,8 @@ func _create_level_demand(index: int, pattern: String, rng: RandomNumberGenerato
 				origin = rng.randi_range(5, 10)
 				destination = rng.randi_range(1, 4)
 		"adaptive":
-			match rng.randi_range(0, 2):
+			# Level 4 always contains an even mix; schedule timing randomizes their order.
+			match index % 3:
 				0:
 					origin = 1
 					destination = rng.randi_range(4, 10)
