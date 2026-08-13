@@ -19,6 +19,9 @@ func _init() -> void:
 	_test_upward_collective_control_orders_compatible_stops()
 	_test_downward_collective_control_orders_compatible_stops()
 	_test_idle_controller_travels_to_pickup_before_adopting_request_direction()
+	_test_terminal_turnaround_adopts_opposite_direction_at_current_floor()
+	_test_destination_requests_are_deduplicated()
+	_test_controller_owns_movement_state_transitions()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -133,6 +136,34 @@ func _test_idle_controller_travels_to_pickup_before_adopting_request_direction()
 	controller.current_floor = 8
 	controller.recalculate_service_direction()
 	_expect(controller.service_direction == SimulationTypes.Direction.DOWN, "controller should adopt DOWN service direction at the pickup floor")
+
+
+func _test_terminal_turnaround_adopts_opposite_direction_at_current_floor() -> void:
+	var controller = _new_controller(7, SimulationTypes.Direction.UP)
+	controller.add_hall_request(_request(7, SimulationTypes.Direction.DOWN))
+
+	controller.recalculate_service_direction()
+	_expect(controller.service_direction == SimulationTypes.Direction.DOWN, "terminal UP controller should adopt current-floor DOWN request instead of becoming idle")
+	_expect(controller.next_stop() == 7, "current-floor turnaround should retain the DOWN hall request as the next service")
+
+
+func _test_destination_requests_are_deduplicated() -> void:
+	var controller = _new_controller(2, SimulationTypes.Direction.UP)
+	controller.add_destination_request(7)
+	controller.add_destination_request(7)
+
+	_expect(controller.destination_requests.size() == 1, "matching passenger destinations should produce one physical stop")
+
+
+func _test_controller_owns_movement_state_transitions() -> void:
+	var controller = _new_controller(2, SimulationTypes.Direction.IDLE)
+	controller.begin_moving_to(5)
+	_expect(controller.movement_state == SimulationTypes.MovementState.MOVING, "controller should enter MOVING when it accepts a target")
+	_expect(controller.target_floor == 5, "controller should own the active target floor")
+	controller.arrive_at(5)
+	_expect(controller.movement_state == SimulationTypes.MovementState.STOPPED, "controller should enter STOPPED when it arrives")
+	controller.complete_stop()
+	_expect(controller.movement_state == SimulationTypes.MovementState.IDLE, "controller should return to IDLE after stop processing")
 
 
 func _new_controller(floor: int, service_direction: int):

@@ -66,6 +66,11 @@ func next_stop() -> int:
 		target_floor = _nearest_assigned_pickup_floor()
 		return target_floor
 
+	var current_request := _request_at_floor_for_direction(service_direction)
+	if current_request != null:
+		target_floor = current_floor
+		return target_floor
+
 	var next := _nearest_stop_ahead(service_direction)
 	if next != 0:
 		target_floor = next
@@ -76,8 +81,20 @@ func next_stop() -> int:
 		target_floor = _nearest_assigned_pickup_floor()
 		return target_floor
 
+	current_request = _request_at_floor_for_direction(service_direction)
+	if current_request != null:
+		target_floor = current_floor
+		return target_floor
+
 	target_floor = _nearest_stop_ahead(service_direction)
 	return target_floor
+
+
+func begin_moving_to(floor: int) -> void:
+	if floor == current_floor or floor <= 0:
+		return
+	target_floor = floor
+	movement_state = SimulationTypes.MovementState.MOVING
 
 
 func recalculate_service_direction() -> void:
@@ -94,6 +111,9 @@ func recalculate_service_direction() -> void:
 		return
 
 	var reversed_direction := -service_direction
+	if _request_at_floor_for_direction(reversed_direction) != null:
+		_set_service_direction(reversed_direction)
+		return
 	if _nearest_stop_ahead(reversed_direction) != 0:
 		_set_service_direction(reversed_direction)
 		return
@@ -106,6 +126,11 @@ func arrive_at(floor: int) -> void:
 	target_floor = 0
 	movement_state = SimulationTypes.MovementState.STOPPED
 	elevator_arrived.emit(current_floor)
+
+
+func complete_stop() -> void:
+	movement_state = SimulationTypes.MovementState.IDLE
+	door_state = SimulationTypes.DoorState.CLOSED
 
 
 func open_doors() -> void:
@@ -148,6 +173,13 @@ func _nearest_destination_floor() -> int:
 func _request_at_current_floor() -> HallRequest:
 	for request: HallRequest in assigned_hall_requests:
 		if request.is_active() and request.floor == current_floor:
+			return request
+	return null
+
+
+func _request_at_floor_for_direction(direction: int) -> HallRequest:
+	for request: HallRequest in assigned_hall_requests:
+		if request.is_active() and request.floor == current_floor and request.direction == direction:
 			return request
 	return null
 

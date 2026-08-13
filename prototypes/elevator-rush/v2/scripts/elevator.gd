@@ -2,6 +2,7 @@ class_name RushElevator
 extends Node2D
 
 const ElevatorController := preload("res://scripts/simulation/elevator_controller.gd")
+const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 
 ## Presentation adapter for ElevatorController. This node renders and animates
 ## state supplied by simulation; it never assigns passenger demand or chooses a
@@ -87,14 +88,15 @@ func update_simulation(delta: float, _waiting_passengers: Array[RushPassenger]) 
 	if controller == null:
 		return []
 
-	if state == State.MOVING:
+	if controller.movement_state == SimulationTypes.MovementState.MOVING:
 		busy_time += delta
 		_move(delta)
 		return []
 
 	var next := controller.next_stop()
 	if next != 0 and next != current_floor:
-		_move_to(next)
+		controller.begin_moving_to(next)
+		_sync_from_controller()
 	return []
 
 
@@ -129,24 +131,14 @@ func _make_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: 
 	return {"min": minimum, "max": maximum, "stage": clampi(stage_floor, minimum, maximum), "behavior": behavior}
 
 
-func _move_to(floor: int) -> void:
-	target_floor = floor
-	direction = signi(target_floor - current_floor)
-	last_travel_direction = direction
-	state = State.MOVING
-	queue_redraw()
-
-
 func _move(delta: float) -> void:
-	var target_y := _floor_y(target_floor)
+	var target_y := _floor_y(controller.target_floor)
 	position.y = move_toward(position.y, target_y, SPEED * delta)
 	if is_equal_approx(position.y, target_y):
-		current_floor = target_floor
-		direction = 0
 		stop_count += 1
-		state = State.IDLE
-		controller.arrive_at(current_floor)
+		controller.arrive_at(controller.target_floor)
 		controller.recalculate_service_direction()
+		controller.complete_stop()
 		_sync_from_controller()
 		queue_redraw()
 
@@ -155,6 +147,11 @@ func _sync_from_controller() -> void:
 	if controller == null:
 		return
 	current_floor = controller.current_floor
+	target_floor = controller.target_floor
+	direction = signi(target_floor - current_floor) if target_floor != 0 else 0
+	if direction != 0:
+		last_travel_direction = direction
+	state = State.MOVING if controller.movement_state == SimulationTypes.MovementState.MOVING else State.IDLE
 	passengers = controller.passengers
 
 
