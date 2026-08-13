@@ -62,9 +62,9 @@ text = "RESTART LEVEL"
 
 [node name="PreparationPanel" type="ColorRect" parent="UI"]
 offset_left = 12.0
-offset_top = 676.0
+offset_top = 518.0
 offset_right = 588.0
-offset_bottom = 948.0
+offset_bottom = 950.0
 color = Color(0.06, 0.1, 0.18, 0.98)
 
 [node name="LevelLabel" type="Label" parent="UI/PreparationPanel"]
@@ -78,170 +78,297 @@ text = "LEVEL 1 / 3 — MORNING RUSH"
 
 [node name="Help" type="Label" parent="UI/PreparationPanel"]
 offset_left = 12.0
-offset_top = 31.0
+offset_top = 32.0
 offset_right = 560.0
-offset_bottom = 49.0
-theme_override_colors/font_color = Color(0.95, 0.98, 1, 1)
+offset_bottom = 52.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
 text = "Forecast: lobby-heavy upward traffic. Use Apply to queue live changes."
 
-[node name="Header" type="Label" parent="UI/PreparationPanel"]
-offset_left = 12.0
-offset_top = 52.0
-offset_right = 560.0
-offset_bottom = 70.0
-theme_override_colors/font_color = Color(0.6, 0.75, 0.95, 1)
-text = "                 MIN    MAX   STAGE        BEHAVIOR                  APPLY"
+[node name="E1Card" type="ColorRect" parent="UI/PreparationPanel"]
+offset_left = 10.0
+offset_top = 60.0
+offset_right = 566.0
+offset_bottom = 158.0
+color = Color(0.055, 0.16, 0.25, 1)
 
 [node name="E1Status" type="Label" parent="UI/PreparationPanel"]
-offset_left = 14.0
-offset_top = 73.0
+offset_left = 18.0
+offset_top = 65.0
 offset_right = 560.0
-offset_bottom = 91.0
+offset_bottom = 83.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
 text = "E1  SETUP"
 
+[node name="E1ServeFromLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 18.0
+offset_top = 85.0
+offset_right = 100.0
+offset_bottom = 101.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "SERVE FROM"
+
 [node name="E1Min" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 14.0
-offset_top = 93.0
-offset_right = 66.0
-offset_bottom = 123.0
+offset_left = 18.0
+offset_top = 105.0
+offset_right = 100.0
+offset_bottom = 149.0
 min_value = 1.0
 max_value = 10.0
 value = 1.0
 
+[node name="E1ToLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 108.0
+offset_top = 85.0
+offset_right = 190.0
+offset_bottom = 101.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "TO"
+
 [node name="E1Max" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 72.0
-offset_top = 93.0
-offset_right = 124.0
-offset_bottom = 123.0
+offset_left = 108.0
+offset_top = 105.0
+offset_right = 190.0
+offset_bottom = 149.0
 min_value = 1.0
 max_value = 10.0
 value = 5.0
 
+[node name="E1StageLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 198.0
+offset_top = 85.0
+offset_right = 280.0
+offset_bottom = 101.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "STAGE AT"
+
 [node name="E1Stage" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 130.0
-offset_top = 93.0
-offset_right = 182.0
-offset_bottom = 123.0
+offset_left = 198.0
+offset_top = 105.0
+offset_right = 280.0
+offset_bottom = 149.0
 min_value = 1.0
 max_value = 10.0
 value = 1.0
+
+[node name="E1ModeLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 288.0
+offset_top = 85.0
+offset_right = 414.0
+offset_bottom = 101.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "MODE"
 
 [node name="E1Mode" type="OptionButton" parent="UI/PreparationPanel"]
-offset_left = 188.0
-offset_top = 93.0
-offset_right = 400.0
-offset_bottom = 123.0
+offset_left = 288.0
+offset_top = 105.0
+offset_right = 414.0
+offset_bottom = 149.0
 
 [node name="E1Apply" type="Button" parent="UI/PreparationPanel"]
-offset_left = 410.0
-offset_top = 93.0
-offset_right = 562.0
-offset_bottom = 123.0
-text = "APPLY"
+offset_left = 422.0
+offset_top = 105.0
+offset_right = 558.0
+offset_bottom = 149.0
+theme_override_font_sizes/font_size = 13
+text = "APPLY TO E1"
+
+[node name="E2Card" type="ColorRect" parent="UI/PreparationPanel"]
+offset_left = 10.0
+offset_top = 164.0
+offset_right = 566.0
+offset_bottom = 262.0
+color = Color(0.1, 0.11, 0.27, 1)
 
 [node name="E2Status" type="Label" parent="UI/PreparationPanel"]
-offset_left = 14.0
-offset_top = 127.0
+offset_left = 18.0
+offset_top = 169.0
 offset_right = 560.0
-offset_bottom = 145.0
+offset_bottom = 187.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
 text = "E2  SETUP"
 
+[node name="E2ServeFromLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 18.0
+offset_top = 189.0
+offset_right = 100.0
+offset_bottom = 205.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "SERVE FROM"
+
 [node name="E2Min" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 14.0
-offset_top = 147.0
-offset_right = 66.0
-offset_bottom = 177.0
+offset_left = 18.0
+offset_top = 209.0
+offset_right = 100.0
+offset_bottom = 253.0
 min_value = 1.0
 max_value = 10.0
 value = 1.0
 
+[node name="E2ToLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 108.0
+offset_top = 189.0
+offset_right = 190.0
+offset_bottom = 205.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "TO"
+
 [node name="E2Max" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 72.0
-offset_top = 147.0
-offset_right = 124.0
-offset_bottom = 177.0
+offset_left = 108.0
+offset_top = 209.0
+offset_right = 190.0
+offset_bottom = 253.0
 min_value = 1.0
 max_value = 10.0
 value = 10.0
 
+[node name="E2StageLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 198.0
+offset_top = 189.0
+offset_right = 280.0
+offset_bottom = 205.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "STAGE AT"
+
 [node name="E2Stage" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 130.0
-offset_top = 147.0
-offset_right = 182.0
-offset_bottom = 177.0
+offset_left = 198.0
+offset_top = 209.0
+offset_right = 280.0
+offset_bottom = 253.0
 min_value = 1.0
 max_value = 10.0
 value = 5.0
 
+[node name="E2ModeLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 288.0
+offset_top = 189.0
+offset_right = 414.0
+offset_bottom = 205.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "MODE"
+
 [node name="E2Mode" type="OptionButton" parent="UI/PreparationPanel"]
-offset_left = 188.0
-offset_top = 147.0
-offset_right = 400.0
-offset_bottom = 177.0
+offset_left = 288.0
+offset_top = 209.0
+offset_right = 414.0
+offset_bottom = 253.0
 
 [node name="E2Apply" type="Button" parent="UI/PreparationPanel"]
-offset_left = 410.0
-offset_top = 147.0
-offset_right = 562.0
-offset_bottom = 177.0
-text = "APPLY"
+offset_left = 422.0
+offset_top = 209.0
+offset_right = 558.0
+offset_bottom = 253.0
+theme_override_font_sizes/font_size = 13
+text = "APPLY TO E2"
+
+[node name="E3Card" type="ColorRect" parent="UI/PreparationPanel"]
+offset_left = 10.0
+offset_top = 268.0
+offset_right = 566.0
+offset_bottom = 366.0
+color = Color(0.1, 0.21, 0.2, 1)
 
 [node name="E3Status" type="Label" parent="UI/PreparationPanel"]
-offset_left = 14.0
-offset_top = 181.0
+offset_left = 18.0
+offset_top = 273.0
 offset_right = 560.0
-offset_bottom = 199.0
+offset_bottom = 291.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 14
 text = "E3  SETUP"
 
+[node name="E3ServeFromLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 18.0
+offset_top = 293.0
+offset_right = 100.0
+offset_bottom = 309.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "SERVE FROM"
+
 [node name="E3Min" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 14.0
-offset_top = 201.0
-offset_right = 66.0
-offset_bottom = 231.0
+offset_left = 18.0
+offset_top = 313.0
+offset_right = 100.0
+offset_bottom = 357.0
 min_value = 1.0
 max_value = 10.0
 value = 6.0
 
+[node name="E3ToLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 108.0
+offset_top = 293.0
+offset_right = 190.0
+offset_bottom = 309.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "TO"
+
 [node name="E3Max" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 72.0
-offset_top = 201.0
-offset_right = 124.0
-offset_bottom = 231.0
+offset_left = 108.0
+offset_top = 313.0
+offset_right = 190.0
+offset_bottom = 357.0
 min_value = 1.0
 max_value = 10.0
 value = 10.0
 
+[node name="E3StageLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 198.0
+offset_top = 293.0
+offset_right = 280.0
+offset_bottom = 309.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "STAGE AT"
+
 [node name="E3Stage" type="SpinBox" parent="UI/PreparationPanel"]
-offset_left = 130.0
-offset_top = 201.0
-offset_right = 182.0
-offset_bottom = 231.0
+offset_left = 198.0
+offset_top = 313.0
+offset_right = 280.0
+offset_bottom = 357.0
 min_value = 1.0
 max_value = 10.0
 value = 8.0
 
+[node name="E3ModeLabel" type="Label" parent="UI/PreparationPanel"]
+offset_left = 288.0
+offset_top = 293.0
+offset_right = 414.0
+offset_bottom = 309.0
+theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
+theme_override_font_sizes/font_size = 10
+text = "MODE"
+
 [node name="E3Mode" type="OptionButton" parent="UI/PreparationPanel"]
-offset_left = 188.0
-offset_top = 201.0
-offset_right = 400.0
-offset_bottom = 231.0
+offset_left = 288.0
+offset_top = 313.0
+offset_right = 414.0
+offset_bottom = 357.0
 
 [node name="E3Apply" type="Button" parent="UI/PreparationPanel"]
-offset_left = 410.0
-offset_top = 201.0
-offset_right = 562.0
-offset_bottom = 231.0
-text = "APPLY"
+offset_left = 422.0
+offset_top = 313.0
+offset_right = 558.0
+offset_bottom = 357.0
+theme_override_font_sizes/font_size = 13
+text = "APPLY TO E3"
 
 [node name="StartButton" type="Button" parent="UI/PreparationPanel"]
 offset_left = 14.0
-offset_top = 236.0
+offset_top = 378.0
 offset_right = 562.0
-offset_bottom = 268.0
-theme_override_font_sizes/font_size = 18
+offset_bottom = 422.0
+theme_override_font_sizes/font_size = 19
 text = "START MORNING RUSH — 50 PASSENGERS"
 
 [node name="ResultsPanel" type="ColorRect" parent="UI"]

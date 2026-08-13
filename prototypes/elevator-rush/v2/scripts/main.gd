@@ -7,6 +7,7 @@ const ElevatorDispatcher := preload("res://scripts/simulation/elevator_dispatche
 const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 const WAVE_SECONDS := 60.0
 const PASS_GRADE := 8.0
+const ELEVATOR_ACCENTS := [Color("38bdf8"), Color("a78bfa"), Color("2dd4bf")]
 const LEVELS := [
 	{"name": "MORNING RUSH", "forecast": "Lobby-heavy upward traffic: Floor 1 → Floors 4–10.", "passengers": 50, "seed": 20260811, "pattern": "morning"},
 	{"name": "MIDDAY EXCHANGE", "forecast": "Mixed traffic: lobby arrivals and office-to-lobby returns.", "passengers": 54, "seed": 20260812, "pattern": "midday"},
@@ -19,7 +20,8 @@ enum Phase { PREPARATION, RUNNING, RESULTS }
 @export var elevator_script: Script
 @export var passenger_script: Script
 
-var floor_y_positions: Array[float] = [650.0, 594.0, 538.0, 482.0, 426.0, 370.0, 314.0, 258.0, 202.0, 146.0]
+# Keep the building above the persistent strategy cards in the 600x960 portrait viewport.
+var floor_y_positions: Array[float] = [480.0, 440.0, 400.0, 360.0, 320.0, 280.0, 240.0, 200.0, 160.0, 120.0]
 var phase := Phase.PREPARATION
 var wave_time := 0.0
 var spawn_index := 0
@@ -66,10 +68,15 @@ func _ready() -> void:
 	for index in range(ELEVATOR_COUNT):
 		_apply_behavior_options(behavior_boxes[index])
 		apply_buttons[index].pressed.connect(_request_live_strategy.bind(index))
+		min_boxes[index].value_changed.connect(_update_strategy_panel)
+		max_boxes[index].value_changed.connect(_update_strategy_panel)
+		staging_boxes[index].value_changed.connect(_update_strategy_panel)
+		behavior_boxes[index].item_selected.connect(_update_strategy_panel)
 	_create_elevators()
 	hall_request_manager = HallRequestManager.new(FLOOR_COUNT)
 	elevator_dispatcher = ElevatorDispatcher.new()
 	_apply_ui_contrast($UI)
+	_apply_strategy_card_styles()
 	_update_ui()
 	queue_redraw()
 
@@ -97,18 +104,18 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, Vector2(600.0, 960.0)), Color("111827"))
-	draw_rect(Rect2(72.0, 116.0, 330.0, 562.0), Color("25344b"), true)
+	draw_rect(Rect2(72.0, 100.0, 330.0, 410.0), Color("25344b"), true)
 	for index in range(FLOOR_COUNT):
-		var y := floor_y_positions[index] + 26.0
+		var y := floor_y_positions[index] + 18.0
 		draw_line(Vector2(62.0, y), Vector2(566.0, y), Color("64748b"), 1.5)
 		draw_string(ThemeDB.fallback_font, Vector2(18.0, floor_y_positions[index] + 4.0), "F%02d" % (index + 1), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15, Color("e2e8f0"))
 
 	for shaft in range(ELEVATOR_COUNT):
 		var x := 142.0 + shaft * 88.0
-		draw_rect(Rect2(x - 31.0, 116.0, 62.0, 562.0), Color("0b1220"), true)
-		draw_string(ThemeDB.fallback_font, Vector2(x - 18.0, 110.0), "E%d" % (shaft + 1), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15, Color("bae6fd"))
+		draw_rect(Rect2(x - 31.0, 100.0, 62.0, 410.0), Color("0b1220"), true)
+		draw_string(ThemeDB.fallback_font, Vector2(x - 18.0, 94.0), "E%d" % (shaft + 1), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15, Color("bae6fd"))
 
-	draw_string(ThemeDB.fallback_font, Vector2(420.0, 126.0), "WAITING", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15, Color("fde68a"))
+	draw_string(ThemeDB.fallback_font, Vector2(420.0, 108.0), "WAITING", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 15, Color("fde68a"))
 
 
 func _create_elevators() -> void:
@@ -574,7 +581,7 @@ func _request_live_strategy(index: int) -> void:
 	_update_strategy_panel()
 
 
-func _update_strategy_panel() -> void:
+func _update_strategy_panel(_changed_value: Variant = null) -> void:
 	var is_preparation := phase == Phase.PREPARATION
 	start_button.visible = is_preparation
 	for index in range(ELEVATOR_COUNT):
@@ -584,17 +591,24 @@ func _update_strategy_panel() -> void:
 		max_boxes[index].editable = can_edit
 		staging_boxes[index].editable = can_edit
 		behavior_boxes[index].disabled = not can_edit
-		apply_buttons[index].visible = phase == Phase.RUNNING
-		apply_buttons[index].disabled = not can_edit
+		apply_buttons[index].visible = true
+		apply_buttons[index].disabled = is_preparation or not can_edit
 		if is_preparation:
-			strategy_statuses[index].text = "E%d  SETUP" % elevator.elevator_id
+			strategy_statuses[index].text = "E%d READY  •  SERVES F%d–F%d  •  STAGES F%d  •  %s" % [
+				elevator.elevator_id,
+				roundi(min_boxes[index].value),
+				roundi(max_boxes[index].value),
+				roundi(staging_boxes[index].value),
+				behavior_boxes[index].get_item_text(behavior_boxes[index].selected),
+			]
+			apply_buttons[index].text = "APPLIES ON START"
 		elif phase == Phase.RUNNING:
 			var pending := elevator.pending_strategy_summary()
-			var status_text := "NOW: " + elevator.strategy_summary()
+			var status_text := "ACTIVE: " + elevator.strategy_summary()
 			if not pending.is_empty():
-				status_text += "  →  PENDING: " + pending
+				status_text += "  →  QUEUED: " + pending
 			strategy_statuses[index].text = "E%d  %s" % [elevator.elevator_id, status_text]
-			apply_buttons[index].text = "COOLDOWN %.0fs" % ceilf(elevator.strategy_cooldown_left) if elevator.strategy_cooldown_left > 0.0 else "APPLY"
+			apply_buttons[index].text = "COOLDOWN %.0fs" % ceilf(elevator.strategy_cooldown_left) if elevator.strategy_cooldown_left > 0.0 else "APPLY TO E%d" % elevator.elevator_id
 		else:
 			strategy_statuses[index].text = "E%d  FINAL: %s" % [elevator.elevator_id, elevator.strategy_summary()]
 
@@ -609,14 +623,72 @@ func _apply_behavior_options(box: OptionButton) -> void:
 
 
 func _apply_ui_contrast(node: Node) -> void:
-	if node is Label or node is Button or node is SpinBox or node is OptionButton:
-		var control := node as Control
-		control.add_theme_color_override("font_color", Color("f8fafc"))
-		control.add_theme_color_override("font_outline_color", Color("020617"))
-		control.add_theme_constant_override("outline_size", 2)
+	if node is Label:
+		var label := node as Label
+		if not label.has_theme_color_override("font_color"):
+			label.add_theme_color_override("font_color", Color("f8fafc"))
+		if not label.has_theme_color_override("font_outline_color"):
+			label.add_theme_color_override("font_outline_color", Color("020617"))
+		if not label.has_theme_constant_override("outline_size"):
+			label.add_theme_constant_override("outline_size", 2)
+	elif node is Button:
+		var button := node as Button
+		button.add_theme_color_override("font_color", Color("f8fafc"))
+		button.add_theme_color_override("font_outline_color", Color("020617"))
+		button.add_theme_constant_override("outline_size", 2)
 	if node is SpinBox:
 		var spin_box := node as SpinBox
-		spin_box.get_line_edit().add_theme_color_override("font_color", Color("f8fafc"))
-		spin_box.get_line_edit().add_theme_color_override("font_placeholder_color", Color("cbd5e1"))
+		spin_box.get_line_edit().add_theme_color_override("font_color", Color("0f172a"))
+		spin_box.get_line_edit().add_theme_color_override("font_placeholder_color", Color("475569"))
+		spin_box.get_line_edit().add_theme_constant_override("outline_size", 0)
+	if node is OptionButton:
+		var option_button := node as OptionButton
+		option_button.add_theme_color_override("font_color", Color("0f172a"))
+		option_button.add_theme_constant_override("outline_size", 0)
 	for child in node.get_children():
 		_apply_ui_contrast(child)
+
+
+func _apply_strategy_card_styles() -> void:
+	for index in range(ELEVATOR_COUNT):
+		var accent: Color = ELEVATOR_ACCENTS[index]
+		var input_normal := _flat_style(Color("e0f2fe"), Color("93c5fd"), 2)
+		var input_focus := _flat_style(Color("f8fafc"), accent, 3)
+		var line_edit := min_boxes[index].get_line_edit()
+		line_edit.add_theme_stylebox_override("normal", input_normal)
+		line_edit.add_theme_stylebox_override("focus", input_focus)
+		line_edit.add_theme_font_size_override("font_size", 17)
+		line_edit = max_boxes[index].get_line_edit()
+		line_edit.add_theme_stylebox_override("normal", input_normal)
+		line_edit.add_theme_stylebox_override("focus", input_focus)
+		line_edit.add_theme_font_size_override("font_size", 17)
+		line_edit = staging_boxes[index].get_line_edit()
+		line_edit.add_theme_stylebox_override("normal", input_normal)
+		line_edit.add_theme_stylebox_override("focus", input_focus)
+		line_edit.add_theme_font_size_override("font_size", 17)
+
+		behavior_boxes[index].add_theme_stylebox_override("normal", input_normal)
+		behavior_boxes[index].add_theme_stylebox_override("hover", input_focus)
+		behavior_boxes[index].add_theme_stylebox_override("focus", input_focus)
+		behavior_boxes[index].add_theme_font_size_override("font_size", 14)
+
+		var apply_button := apply_buttons[index]
+		apply_button.add_theme_stylebox_override("normal", _flat_style(accent, accent.lightened(0.28), 2))
+		apply_button.add_theme_stylebox_override("hover", _flat_style(accent.lightened(0.12), Color("ffffff"), 2))
+		apply_button.add_theme_stylebox_override("pressed", _flat_style(accent.darkened(0.18), Color("ffffff"), 2))
+		apply_button.add_theme_stylebox_override("disabled", _flat_style(Color("334155"), Color("475569"), 2))
+
+	start_button.add_theme_stylebox_override("normal", _flat_style(Color("f59e0b"), Color("fef3c7"), 2))
+	start_button.add_theme_stylebox_override("hover", _flat_style(Color("fbbf24"), Color("ffffff"), 2))
+	start_button.add_theme_stylebox_override("pressed", _flat_style(Color("d97706"), Color("ffffff"), 2))
+
+
+func _flat_style(background: Color, border: Color, border_width: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(border_width)
+	style.set_corner_radius_all(7)
+	style.content_margin_left = 9.0
+	style.content_margin_right = 9.0
+	return style
