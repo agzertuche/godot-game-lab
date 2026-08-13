@@ -263,8 +263,17 @@ text = ""
 
 [node name="ReplayButton" type="Button" parent="UI/ResultsPanel"]
 offset_left = 36.0
-offset_top = 548.0
+offset_top = 522.0
 offset_right = 500.0
-offset_bottom = 602.0
+offset_bottom = 568.0
 theme_override_font_sizes/font_size = 20
 text = "ADJUST STRATEGY & REPLAY"
+
+[node name="NewChallengeButton" type="Button" parent="UI/ResultsPanel"]
+visible = false
+offset_left = 36.0
+offset_top = 578.0
+offset_right = 500.0
+offset_bottom = 624.0
+theme_override_font_sizes/font_size = 20
+text = "NEW CHALLENGE"

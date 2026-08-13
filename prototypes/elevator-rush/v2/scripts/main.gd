@@ -43,6 +43,7 @@ var adaptive_chaos_schedule: Array[Dictionary] = []
 @onready var start_button: Button = $UI/PreparationPanel/StartButton
 @onready var restart_button: Button = $UI/RestartButton
 @onready var replay_button: Button = $UI/ResultsPanel/ReplayButton
+@onready var new_challenge_button: Button = $UI/ResultsPanel/NewChallengeButton
 @onready var min_boxes: Array[SpinBox] = [$UI/PreparationPanel/E1Min, $UI/PreparationPanel/E2Min, $UI/PreparationPanel/E3Min]
 @onready var max_boxes: Array[SpinBox] = [$UI/PreparationPanel/E1Max, $UI/PreparationPanel/E2Max, $UI/PreparationPanel/E3Max]
 @onready var staging_boxes: Array[SpinBox] = [$UI/PreparationPanel/E1Stage, $UI/PreparationPanel/E2Stage, $UI/PreparationPanel/E3Stage]
@@ -55,6 +56,7 @@ func _ready() -> void:
 	start_button.pressed.connect(_start_wave)
 	restart_button.pressed.connect(_restart_level)
 	replay_button.pressed.connect(_on_results_button_pressed)
+	new_challenge_button.pressed.connect(_on_new_challenge_button_pressed)
 	for index in range(ELEVATOR_COUNT):
 		_apply_behavior_options(behavior_boxes[index])
 		apply_buttons[index].pressed.connect(_request_live_strategy.bind(index))
@@ -358,8 +360,22 @@ func _calculate_grade(average_wait: float) -> Dictionary:
 
 
 func _on_results_button_pressed() -> void:
-	if last_grade >= PASS_GRADE and current_level_index < LEVELS.size() - 1:
+	if last_grade < PASS_GRADE:
+		_return_to_preparation()
+	elif current_level_index < LEVELS.size() - 1:
 		current_level_index += 1
+		_return_to_preparation()
+	else:
+		_return_to_preparation()
+
+
+func _on_new_challenge_button_pressed() -> void:
+	if phase != Phase.RESULTS or last_grade < PASS_GRADE:
+		return
+	if current_level_index != LEVELS.size() - 1:
+		return
+	adaptive_chaos_schedule.clear()
+	_get_adaptive_chaos_schedule()
 	_return_to_preparation()
 
 
@@ -369,7 +385,7 @@ func _return_to_preparation() -> void:
 	preparation_panel.visible = true
 	phase_label.text = "PREPARATION — configure strategy for Level %d." % (current_level_index + 1)
 	if str(_current_level()["pattern"]) == "adaptive":
-		simulation_hud.text = "Wave: ready — a new challenge will be generated when you begin."
+		simulation_hud.text = "Wave: ready — generated challenge is ready to replay."
 	else:
 		simulation_hud.text = "Wave: ready — fixed seed %d" % _current_level()["seed"]
 	_update_ui()
@@ -382,7 +398,8 @@ func _update_ui() -> void:
 		start_button.text = "START LEVEL %d — %d PASSENGERS" % [current_level_index + 1, _current_level()["passengers"]]
 		phase_label.text = "PREPARATION — configure coverage, staging, and behavior."
 		if str(_current_level()["pattern"]) == "adaptive":
-			simulation_hud.text = "Wave: %d passengers over 60 seconds. A new challenge locks in when started." % _current_level()["passengers"]
+			var adaptive_status := "Same generated challenge every replay." if not adaptive_chaos_schedule.is_empty() else "A new challenge locks in when started."
+			simulation_hud.text = "Wave: %d passengers over 60 seconds. %s" % [_current_level()["passengers"], adaptive_status]
 		else:
 			simulation_hud.text = "Wave: %d passengers over 60 seconds. Same demand every replay." % _current_level()["passengers"]
 		restart_button.visible = false
@@ -399,6 +416,7 @@ func _update_ui() -> void:
 
 
 func _update_results_actions() -> void:
+	new_challenge_button.visible = false
 	if last_grade < PASS_GRADE:
 		results_title.text = "LEVEL %d RESULTS" % (current_level_index + 1)
 		replay_button.text = "ADJUST STRATEGY & REPLAY"
@@ -407,8 +425,9 @@ func _update_results_actions() -> void:
 		replay_button.text = "UNLOCK LEVEL %d" % (current_level_index + 2)
 	else:
 		results_title.text = "CONGRATULATIONS!"
-		results_metrics.text = "YOU BEAT ALL 3 LEVELS!\n\n" + results_metrics.text
-		replay_button.text = "PLAY AGAIN"
+		results_metrics.text = "YOU BEAT ALL %d LEVELS!\n\n" % LEVELS.size() + results_metrics.text
+		replay_button.text = "REPLAY SAME CHALLENGE"
+		new_challenge_button.visible = true
 
 
 func _current_level() -> Dictionary:
