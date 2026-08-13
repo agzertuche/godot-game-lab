@@ -3,6 +3,8 @@ extends SceneTree
 const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 const RushPassenger := preload("res://scripts/passenger.gd")
 const HallRequestManager := preload("res://scripts/simulation/hall_request_manager.gd")
+const HALL_REQUEST_PATH := "res://scripts/simulation/hall_request.gd"
+const ELEVATOR_CONTROLLER_PATH := "res://scripts/simulation/elevator_controller.gd"
 
 var _failures: Array[String] = []
 var _completed_request_count := 0
@@ -14,6 +16,9 @@ func _init() -> void:
 	_test_opposite_directions_create_separate_hall_requests()
 	_test_impossible_boundary_requests_are_rejected()
 	_test_request_remains_active_until_last_passenger_leaves()
+	_test_upward_collective_control_orders_compatible_stops()
+	_test_downward_collective_control_orders_compatible_stops()
+	_test_idle_controller_travels_to_pickup_before_adopting_request_direction()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -87,6 +92,69 @@ func _test_request_remains_active_until_last_passenger_leaves() -> void:
 	_expect(_completed_request_count == 1, "final removal should emit hall_request_completed once")
 
 
+func _test_upward_collective_control_orders_compatible_stops() -> void:
+	var controller = _new_controller(2, SimulationTypes.Direction.UP)
+	controller.add_hall_request(_request(3, SimulationTypes.Direction.UP))
+	controller.add_hall_request(_request(4, SimulationTypes.Direction.DOWN))
+	controller.add_hall_request(_request(6, SimulationTypes.Direction.UP))
+	controller.add_destination_request(7)
+
+	_expect(controller.next_stop() == 3, "UP controller should stop first at compatible UP call on floor 3")
+	controller.current_floor = 3
+	_expect(controller.next_stop() == 6, "UP controller should ignore DOWN floor 4 and continue to floor 6")
+	controller.current_floor = 6
+	_expect(controller.next_stop() == 7, "UP controller should serve rider destination floor 7 after compatible hall calls")
+	controller.current_floor = 7
+	_expect(controller.next_stop() == 4, "UP controller should reverse only after upward work is exhausted")
+
+
+func _test_downward_collective_control_orders_compatible_stops() -> void:
+	var controller = _new_controller(9, SimulationTypes.Direction.DOWN)
+	controller.add_hall_request(_request(8, SimulationTypes.Direction.DOWN))
+	controller.add_hall_request(_request(7, SimulationTypes.Direction.UP))
+	controller.add_hall_request(_request(4, SimulationTypes.Direction.DOWN))
+	controller.add_destination_request(2)
+
+	_expect(controller.next_stop() == 8, "DOWN controller should stop first at compatible DOWN call on floor 8")
+	controller.current_floor = 8
+	_expect(controller.next_stop() == 4, "DOWN controller should ignore UP floor 7 and continue to floor 4")
+	controller.current_floor = 4
+	_expect(controller.next_stop() == 2, "DOWN controller should serve rider destination floor 2 after compatible hall calls")
+	controller.current_floor = 2
+	_expect(controller.next_stop() == 7, "DOWN controller should reverse only after downward work is exhausted")
+
+
+func _test_idle_controller_travels_to_pickup_before_adopting_request_direction() -> void:
+	var controller = _new_controller(4, SimulationTypes.Direction.IDLE)
+	controller.add_hall_request(_request(8, SimulationTypes.Direction.DOWN))
+
+	_expect(controller.next_stop() == 8, "idle controller should choose its assigned pickup floor")
+	_expect(controller.service_direction == SimulationTypes.Direction.IDLE, "idle controller should not adopt passenger direction before pickup")
+	controller.current_floor = 8
+	controller.recalculate_service_direction()
+	_expect(controller.service_direction == SimulationTypes.Direction.DOWN, "controller should adopt DOWN service direction at the pickup floor")
+
+
+func _new_controller(floor: int, service_direction: int):
+	var controller_script = load(ELEVATOR_CONTROLLER_PATH)
+	_expect(controller_script != null, "elevator controller script should exist")
+	if controller_script == null:
+		return _MissingController.new()
+	var controller = controller_script.new()
+	controller.current_floor = floor
+	controller.service_direction = service_direction
+	return controller
+
+
+func _request(floor: int, direction: int):
+	var request_script = load(HALL_REQUEST_PATH)
+	var request = request_script.new(floor, direction, 0.0)
+	var passenger := RushPassenger.new()
+	passenger.configure(floor, floor + direction, 0.0)
+	request.add_passenger(passenger)
+	return request
+
+
 func _passenger(origin: int, destination: int, request_time: float) -> RushPassenger:
 	var passenger := RushPassenger.new()
 	passenger.configure(origin, destination, request_time)
@@ -100,3 +168,20 @@ func _record_request_completion(_request) -> void:
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
+
+
+class _MissingController:
+	var current_floor := 0
+	var service_direction := SimulationTypes.Direction.IDLE
+
+	func add_hall_request(_request) -> void:
+		pass
+
+	func add_destination_request(_floor: int) -> void:
+		pass
+
+	func next_stop() -> int:
+		return 0
+
+	func recalculate_service_direction() -> void:
+		pass

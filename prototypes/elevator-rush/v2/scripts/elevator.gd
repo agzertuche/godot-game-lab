@@ -1,15 +1,17 @@
 class_name RushElevator
 extends Node2D
 
+const ElevatorController := preload("res://scripts/simulation/elevator_controller.gd")
+
+## Presentation adapter for ElevatorController. This node renders and animates
+## state supplied by simulation; it never assigns passenger demand or chooses a
+## route from the global waiting-passenger list.
+
 enum State { IDLE, MOVING, BOARDING }
 enum Behavior { NORMAL, UP_BIAS, DOWN_BIAS, UP_ONLY, DOWN_ONLY }
 
-const CAPACITY := 4
 const SPEED := 115.0
-const DOOR_SECONDS := 0.5
-const TRANSFER_SECONDS_PER_PASSENGER := 0.4
 const STRATEGY_COOLDOWN_SECONDS := 8.0
-const WAIT_OVERRIDE_SECONDS := 20.0
 
 var elevator_id := 1
 var current_floor := 1
@@ -24,19 +26,28 @@ var behavior_rule := Behavior.NORMAL
 var pending_strategy: Dictionary = {}
 var strategy_cooldown_left := 0.0
 var strategy_change_count := 0
+
+## Legacy mirrors are retained for the existing HUD until Main is migrated.
+## The authoritative passenger and route state is ElevatorController.
 var passengers: Array[RushPassenger] = []
 var busy_time := 0.0
 var transported_count := 0
 var stop_count := 0
-var boarding_time_left := 0.0
 var floor_y_positions: Array[float] = []
+var controller: ElevatorController
 
 
 func configure(identifier: int, floor_positions: Array[float]) -> void:
 	elevator_id = identifier
 	floor_y_positions = floor_positions.duplicate()
+	bind_controller(ElevatorController.new(identifier, current_floor))
 	position.y = _floor_y(current_floor)
 	queue_redraw()
+
+
+func bind_controller(value: ElevatorController) -> void:
+	controller = value
+	_sync_from_controller()
 
 
 func set_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: int = Behavior.NORMAL) -> void:
@@ -66,239 +77,25 @@ func can_serve(passenger: RushPassenger) -> bool:
 
 
 func has_capacity() -> bool:
-	return passengers.size() < CAPACITY
+	return controller == null or controller.has_capacity()
 
 
-func update_simulation(delta: float, waiting_passengers: Array[RushPassenger]) -> Array[RushPassenger]:
+## Deprecated compatibility entry point. It consumes no global passenger list;
+## Main will be migrated to drive a SimulationManager in the next task.
+func update_simulation(delta: float, _waiting_passengers: Array[RushPassenger]) -> Array[RushPassenger]:
 	strategy_cooldown_left = maxf(0.0, strategy_cooldown_left - delta)
-	if state != State.IDLE:
-		busy_time += delta
+	if controller == null:
+		return []
 
 	if state == State.MOVING:
+		busy_time += delta
 		_move(delta)
-	elif state == State.BOARDING:
-		boarding_time_left -= delta
-		if boarding_time_left <= 0.0:
-			state = State.IDLE
-
-	if state != State.IDLE:
 		return []
 
-	_try_apply_pending_strategy(waiting_passengers)
-	return _choose_next_action(waiting_passengers)
-
-
-func _choose_next_action(waiting_passengers: Array[RushPassenger]) -> Array[RushPassenger]:
-	var arrived := _drop_off_current_floor()
-	if not arrived.is_empty():
-		var continuing_boarders := _board_current_floor(waiting_passengers, true)
-		_finish_stop(arrived.size() + continuing_boarders.size())
-		return arrived
-
-	var boarded := _board_current_floor(waiting_passengers)
-	if not boarded.is_empty():
-		_finish_stop(boarded.size())
-		return []
-
-	var next_destination := _next_rider_destination()
-	if next_destination > 0:
-		var pickup_floor := _claim_en_route_pickup_floor(next_destination, waiting_passengers)
-		_move_to(pickup_floor if pickup_floor > 0 else next_destination)
-		return []
-
-	var next_request := _claim_oldest_valid_request(waiting_passengers)
-	if next_request != null:
-		_move_to(next_request.origin_floor)
-	elif current_floor != staging_floor:
-		_move_to(staging_floor)
+	var next := controller.next_stop()
+	if next != 0 and next != current_floor:
+		_move_to(next)
 	return []
-
-
-func _drop_off_current_floor() -> Array[RushPassenger]:
-	var arrived: Array[RushPassenger] = []
-	for passenger in passengers.duplicate():
-		if passenger.destination_floor == current_floor:
-			passengers.erase(passenger)
-			passenger.state = RushPassenger.State.ARRIVED
-			arrived.append(passenger)
-	queue_redraw()
-	return arrived
-
-
-func _board_current_floor(waiting_passengers: Array[RushPassenger], allow_continuing_direction: bool = false) -> Array[RushPassenger]:
-	var boarded: Array[RushPassenger] = []
-	var continuing_direction := 0
-	if allow_continuing_direction:
-		var next_destination := _next_rider_destination()
-		continuing_direction = signi(next_destination - current_floor)
-
-	for passenger in waiting_passengers:
-		if not has_capacity():
-			break
-		var is_assigned_pickup := passenger.assigned_elevator_id == elevator_id
-		var is_matching_continuation := allow_continuing_direction \
-			and passenger.assigned_elevator_id == 0 \
-			and continuing_direction != 0 \
-			and signi(passenger.destination_floor - passenger.origin_floor) == continuing_direction \
-			and _can_claim_direction(continuing_direction, passenger.wait_time)
-		if passenger.origin_floor == current_floor and can_serve(passenger) and (is_assigned_pickup or is_matching_continuation):
-			passenger.state = RushPassenger.State.RIDING
-			passenger.visible = false
-			passengers.append(passenger)
-			boarded.append(passenger)
-	queue_redraw()
-	return boarded
-
-
-func _next_rider_destination() -> int:
-	if passengers.is_empty():
-		return 0
-
-	var preferred_floor := 0
-	if last_travel_direction >= 0:
-		for passenger in passengers:
-			if passenger.destination_floor > current_floor and (preferred_floor == 0 or passenger.destination_floor < preferred_floor):
-				preferred_floor = passenger.destination_floor
-	else:
-		for passenger in passengers:
-			if passenger.destination_floor < current_floor and passenger.destination_floor > preferred_floor:
-				preferred_floor = passenger.destination_floor
-
-	if preferred_floor != 0:
-		return preferred_floor
-
-	var reverse_floor := passengers[0].destination_floor
-	for passenger in passengers:
-		if last_travel_direction >= 0:
-			reverse_floor = maxi(reverse_floor, passenger.destination_floor)
-		else:
-			reverse_floor = mini(reverse_floor, passenger.destination_floor)
-	return reverse_floor
-
-
-func _claim_oldest_valid_request(waiting_passengers: Array[RushPassenger]) -> RushPassenger:
-	var oldest_passenger := _find_claimable_request(waiting_passengers)
-	if oldest_passenger == null:
-		return null
-
-	var claim_direction := _travel_direction(oldest_passenger)
-	var claimed_count := 0
-	for passenger in waiting_passengers:
-		if claimed_count >= CAPACITY - passengers.size():
-			break
-		var is_same_request := passenger.origin_floor == oldest_passenger.origin_floor and _travel_direction(passenger) == claim_direction
-		var can_join_claim := passenger.assigned_elevator_id == 0 \
-			and is_same_request \
-			and can_serve(passenger) \
-			and _can_claim_direction(claim_direction, passenger.wait_time)
-		if can_join_claim:
-			passenger.assigned_elevator_id = elevator_id
-			claimed_count += 1
-	return oldest_passenger
-
-
-func _claim_en_route_pickup_floor(next_destination: int, waiting_passengers: Array[RushPassenger]) -> int:
-	var travel_direction := signi(next_destination - current_floor)
-	if travel_direction == 0 or not has_capacity():
-		return 0
-
-	var nearest_floor := 0
-	for passenger in waiting_passengers:
-		var is_compatible := passenger.assigned_elevator_id == 0 \
-			and can_serve(passenger) \
-			and signi(passenger.destination_floor - passenger.origin_floor) == travel_direction \
-			and _can_claim_direction(travel_direction, passenger.wait_time) \
-			and _is_floor_between(passenger.origin_floor, next_destination, travel_direction)
-		if not is_compatible:
-			continue
-		if nearest_floor == 0 or (travel_direction > 0 and passenger.origin_floor < nearest_floor) or (travel_direction < 0 and passenger.origin_floor > nearest_floor):
-			nearest_floor = passenger.origin_floor
-
-	if nearest_floor == 0:
-		return 0
-
-	var claimed_count := 0
-	for passenger in waiting_passengers:
-		if claimed_count >= CAPACITY - passengers.size():
-			break
-		var is_at_pickup_floor := passenger.origin_floor == nearest_floor
-		var has_matching_direction := _travel_direction(passenger) == travel_direction
-		var can_join_pickup := passenger.assigned_elevator_id == 0 \
-			and is_at_pickup_floor \
-			and has_matching_direction \
-			and can_serve(passenger) \
-			and _can_claim_direction(travel_direction, passenger.wait_time)
-		if can_join_pickup:
-			passenger.assigned_elevator_id = elevator_id
-			claimed_count += 1
-	return nearest_floor
-
-
-func _find_claimable_request(waiting_passengers: Array[RushPassenger]) -> RushPassenger:
-	var priority_direction := _priority_direction()
-	var oldest_fallback: RushPassenger = null
-	var oldest_preferred: RushPassenger = null
-	for passenger in waiting_passengers:
-		if passenger.assigned_elevator_id != 0 or not can_serve(passenger):
-			continue
-		var passenger_direction := _travel_direction(passenger)
-		if not _can_claim_direction(passenger_direction, passenger.wait_time):
-			continue
-		if priority_direction == 0:
-			return passenger
-		if passenger_direction == priority_direction:
-			if oldest_preferred == null:
-				oldest_preferred = passenger
-		elif behavior_rule == Behavior.UP_BIAS or behavior_rule == Behavior.DOWN_BIAS:
-			if passenger.wait_time >= WAIT_OVERRIDE_SECONDS and oldest_fallback == null:
-				oldest_fallback = passenger
-	return oldest_fallback if oldest_fallback != null else oldest_preferred
-
-
-func _can_claim_direction(travel_direction: int, wait_time: float) -> bool:
-	match behavior_rule:
-		Behavior.UP_ONLY:
-			return travel_direction > 0
-		Behavior.DOWN_ONLY:
-			return travel_direction < 0
-		Behavior.UP_BIAS:
-			return travel_direction > 0 or wait_time >= WAIT_OVERRIDE_SECONDS
-		Behavior.DOWN_BIAS:
-			return travel_direction < 0 or wait_time >= WAIT_OVERRIDE_SECONDS
-	return true
-
-
-func _priority_direction() -> int:
-	if behavior_rule == Behavior.UP_BIAS or behavior_rule == Behavior.UP_ONLY:
-		return 1
-	if behavior_rule == Behavior.DOWN_BIAS or behavior_rule == Behavior.DOWN_ONLY:
-		return -1
-	return 0
-
-
-func _travel_direction(passenger: RushPassenger) -> int:
-	return signi(passenger.destination_floor - passenger.origin_floor)
-
-
-func _try_apply_pending_strategy(waiting_passengers: Array[RushPassenger]) -> void:
-	if pending_strategy.is_empty() or strategy_cooldown_left > 0.0 or not passengers.is_empty():
-		return
-	for passenger in waiting_passengers:
-		if passenger.assigned_elevator_id == elevator_id:
-			return
-	set_strategy(int(pending_strategy["min"]), int(pending_strategy["max"]), int(pending_strategy["stage"]), int(pending_strategy["behavior"]))
-	pending_strategy.clear()
-
-
-func _make_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: int) -> Dictionary:
-	var minimum := mini(min_floor, max_floor)
-	var maximum := maxi(min_floor, max_floor)
-	return {
-		"min": minimum,
-		"max": maximum,
-		"stage": clampi(stage_floor, minimum, maximum),
-		"behavior": behavior,
-	}
 
 
 func behavior_name(rule: int = -1) -> String:
@@ -326,15 +123,13 @@ func pending_strategy_summary() -> String:
 	return "%d–%d F%d %s" % [pending_strategy["min"], pending_strategy["max"], pending_strategy["stage"], behavior_name(int(pending_strategy["behavior"]))]
 
 
-func _is_floor_between(floor: int, destination: int, travel_direction: int) -> bool:
-	if travel_direction > 0:
-		return floor > current_floor and floor < destination
-	return floor < current_floor and floor > destination
+func _make_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: int) -> Dictionary:
+	var minimum := mini(min_floor, max_floor)
+	var maximum := maxi(min_floor, max_floor)
+	return {"min": minimum, "max": maximum, "stage": clampi(stage_floor, minimum, maximum), "behavior": behavior}
 
 
 func _move_to(floor: int) -> void:
-	if floor == current_floor:
-		return
 	target_floor = floor
 	direction = signi(target_floor - current_floor)
 	last_travel_direction = direction
@@ -350,13 +145,17 @@ func _move(delta: float) -> void:
 		direction = 0
 		stop_count += 1
 		state = State.IDLE
+		controller.arrive_at(current_floor)
+		controller.recalculate_service_direction()
+		_sync_from_controller()
 		queue_redraw()
 
 
-func _finish_stop(passenger_count: int) -> void:
-	boarding_time_left = DOOR_SECONDS + passenger_count * TRANSFER_SECONDS_PER_PASSENGER
-	state = State.BOARDING
-	queue_redraw()
+func _sync_from_controller() -> void:
+	if controller == null:
+		return
+	current_floor = controller.current_floor
+	passengers = controller.passengers
 
 
 func _floor_y(floor: int) -> float:
