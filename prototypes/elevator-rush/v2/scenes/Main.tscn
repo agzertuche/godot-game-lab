@@ -29,7 +29,7 @@ text = "ELEVATOR RUSH — V2"
 [node name="PhaseLabel" type="Label" parent="UI"]
 offset_left = 16.0
 offset_top = 43.0
-offset_right = 584.0
+offset_right = 382.0
 offset_bottom = 64.0
 theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
 text = "PREPARATION — configure coverage and staging."
@@ -54,9 +54,9 @@ text = "E1 F1 • 0/4\nE2 F5 • 0/4\nE3 F8 • 0/4\nP F1→F6 WAITING 0s E0"
 [node name="RestartButton" type="Button" parent="UI"]
 visible = false
 offset_left = 398.0
-offset_top = 61.0
+offset_top = 49.0
 offset_right = 584.0
-offset_bottom = 94.0
+offset_bottom = 95.0
 theme_override_font_sizes/font_size = 15
 text = "RESTART LEVEL"
 
@@ -82,7 +82,7 @@ offset_top = 32.0
 offset_right = 560.0
 offset_bottom = 52.0
 theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
-text = "Forecast: lobby-heavy upward traffic. Use Apply to queue live changes."
+text = "Configure all three elevator cards. Settings apply when the level starts."
 
 [node name="E1Card" type="ColorRect" parent="UI/PreparationPanel"]
 offset_left = 10.0
@@ -96,7 +96,7 @@ offset_left = 18.0
 offset_top = 65.0
 offset_right = 560.0
 offset_bottom = 83.0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.22, 0.74, 0.98, 1)
 theme_override_font_sizes/font_size = 14
 text = "E1  SETUP"
 
@@ -189,7 +189,7 @@ offset_left = 18.0
 offset_top = 169.0
 offset_right = 560.0
 offset_bottom = 187.0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.66, 0.55, 0.98, 1)
 theme_override_font_sizes/font_size = 14
 text = "E2  SETUP"
 
@@ -282,7 +282,7 @@ offset_left = 18.0
 offset_top = 273.0
 offset_right = 560.0
 offset_bottom = 291.0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.18, 0.83, 0.75, 1)
 theme_override_font_sizes/font_size = 14
 text = "E3  SETUP"
 

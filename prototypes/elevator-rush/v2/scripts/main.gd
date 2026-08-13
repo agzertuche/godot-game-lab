@@ -496,7 +496,7 @@ func _return_to_preparation() -> void:
 func _update_ui() -> void:
 	if phase == Phase.PREPARATION:
 		level_label.text = "LEVEL %d / %d — %s" % [current_level_index + 1, LEVELS.size(), _current_level()["name"]]
-		preparation_help.text = "Forecast: %s" % _current_level()["forecast"]
+		preparation_help.text = "Configure all three elevator cards. Settings apply when the level starts."
 		start_button.text = "START LEVEL %d — %d PASSENGERS" % [current_level_index + 1, _current_level()["passengers"]]
 		phase_label.text = "PREPARATION — configure coverage, staging, and behavior."
 		if str(_current_level()["pattern"]) == "adaptive":
@@ -678,9 +678,9 @@ func _apply_strategy_card_styles() -> void:
 		apply_button.add_theme_stylebox_override("pressed", _flat_style(accent.darkened(0.18), Color("ffffff"), 2))
 		apply_button.add_theme_stylebox_override("disabled", _flat_style(Color("334155"), Color("475569"), 2))
 
-	start_button.add_theme_stylebox_override("normal", _flat_style(Color("f59e0b"), Color("fef3c7"), 2))
-	start_button.add_theme_stylebox_override("hover", _flat_style(Color("fbbf24"), Color("ffffff"), 2))
-	start_button.add_theme_stylebox_override("pressed", _flat_style(Color("d97706"), Color("ffffff"), 2))
+	start_button.add_theme_stylebox_override("normal", _flat_style(Color("16a34a"), Color("86efac"), 2))
+	start_button.add_theme_stylebox_override("hover", _flat_style(Color("22c55e"), Color("ffffff"), 2))
+	start_button.add_theme_stylebox_override("pressed", _flat_style(Color("15803d"), Color("ffffff"), 2))
 
 
 func _flat_style(background: Color, border: Color, border_width: int) -> StyleBoxFlat:
