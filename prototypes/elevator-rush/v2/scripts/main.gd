@@ -496,7 +496,7 @@ func _return_to_preparation() -> void:
 func _update_ui() -> void:
 	if phase == Phase.PREPARATION:
 		level_label.text = "LEVEL %d / %d — %s" % [current_level_index + 1, LEVELS.size(), _current_level()["name"]]
-		preparation_help.text = "Configure all three elevator cards. Settings apply when the level starts."
+		preparation_help.text = "Forecast: %s\nConfigure cards — settings apply when the level starts." % _current_level()["forecast"]
 		start_button.text = "START LEVEL %d — %d PASSENGERS" % [current_level_index + 1, _current_level()["passengers"]]
 		phase_label.text = "PREPARATION — configure coverage, staging, and behavior."
 		if str(_current_level()["pattern"]) == "adaptive":
@@ -594,7 +594,7 @@ func _update_strategy_panel(_changed_value: Variant = null) -> void:
 		apply_buttons[index].visible = true
 		apply_buttons[index].disabled = is_preparation or not can_edit
 		if is_preparation:
-			strategy_statuses[index].text = "E%d READY  •  SERVES F%d–F%d  •  STAGES F%d  •  %s" % [
+			strategy_statuses[index].text = "E%d READY  •  F%d–F%d  •  STAGE F%d  •  %s" % [
 				elevator.elevator_id,
 				roundi(min_boxes[index].value),
 				roundi(max_boxes[index].value),
@@ -604,9 +604,9 @@ func _update_strategy_panel(_changed_value: Variant = null) -> void:
 			apply_buttons[index].text = "APPLIES ON START"
 		elif phase == Phase.RUNNING:
 			var pending := elevator.pending_strategy_summary()
-			var status_text := "ACTIVE: " + elevator.strategy_summary()
+			var status_text := "NOW " + elevator.strategy_summary()
 			if not pending.is_empty():
-				status_text += "  →  QUEUED: " + pending
+				status_text += "  •  NEXT " + pending
 			strategy_statuses[index].text = "E%d  %s" % [elevator.elevator_id, status_text]
 			apply_buttons[index].text = "COOLDOWN %.0fs" % ceilf(elevator.strategy_cooldown_left) if elevator.strategy_cooldown_left > 0.0 else "APPLY TO E%d" % elevator.elevator_id
 		else:
@@ -673,6 +673,12 @@ func _apply_strategy_card_styles() -> void:
 		behavior_boxes[index].add_theme_font_size_override("font_size", 14)
 
 		var apply_button := apply_buttons[index]
+		apply_button.add_theme_color_override("font_color", Color("071426"))
+		apply_button.add_theme_color_override("font_hover_color", Color("071426"))
+		apply_button.add_theme_color_override("font_pressed_color", Color("071426"))
+		apply_button.add_theme_color_override("font_hover_pressed_color", Color("071426"))
+		apply_button.add_theme_color_override("font_disabled_color", Color("cbd5e1"))
+		apply_button.add_theme_constant_override("outline_size", 0)
 		apply_button.add_theme_stylebox_override("normal", _flat_style(accent, accent.lightened(0.28), 2))
 		apply_button.add_theme_stylebox_override("hover", _flat_style(accent.lightened(0.12), Color("ffffff"), 2))
 		apply_button.add_theme_stylebox_override("pressed", _flat_style(accent.darkened(0.18), Color("ffffff"), 2))

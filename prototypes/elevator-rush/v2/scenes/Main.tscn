@@ -78,11 +78,12 @@ text = "LEVEL 1 / 3 — MORNING RUSH"
 
 [node name="Help" type="Label" parent="UI/PreparationPanel"]
 offset_left = 12.0
-offset_top = 32.0
+offset_top = 31.0
 offset_right = 560.0
-offset_bottom = 52.0
+offset_bottom = 59.0
 theme_override_colors/font_color = Color(0.73, 0.84, 0.98, 1)
-text = "Configure all three elevator cards. Settings apply when the level starts."
+theme_override_font_sizes/font_size = 11
+text = "Forecast: Lobby-heavy upward traffic: Floor 1 → Floors 4–10.\nConfigure cards — settings apply when the level starts."
 
 [node name="E1Card" type="ColorRect" parent="UI/PreparationPanel"]
 offset_left = 10.0
@@ -98,6 +99,7 @@ offset_right = 560.0
 offset_bottom = 83.0
 theme_override_colors/font_color = Color(0.22, 0.74, 0.98, 1)
 theme_override_font_sizes/font_size = 14
+clip_text = true
 text = "E1  SETUP"
 
 [node name="E1ServeFromLabel" type="Label" parent="UI/PreparationPanel"]
@@ -191,6 +193,7 @@ offset_right = 560.0
 offset_bottom = 187.0
 theme_override_colors/font_color = Color(0.66, 0.55, 0.98, 1)
 theme_override_font_sizes/font_size = 14
+clip_text = true
 text = "E2  SETUP"
 
 [node name="E2ServeFromLabel" type="Label" parent="UI/PreparationPanel"]
@@ -284,6 +287,7 @@ offset_right = 560.0
 offset_bottom = 291.0
 theme_override_colors/font_color = Color(0.18, 0.83, 0.75, 1)
 theme_override_font_sizes/font_size = 14
+clip_text = true
 text = "E3  SETUP"
 
 [node name="E3ServeFromLabel" type="Label" parent="UI/PreparationPanel"]
