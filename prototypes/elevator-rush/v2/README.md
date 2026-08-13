@@ -34,7 +34,7 @@ Results also show a weighted `0–10` grade to compare the same wave across stra
 ## Manual Test Checklist
 
 - [ ] Change coverage and staging for all three elevators before starting.
-- [ ] Confirm settings lock during the wave and elevators move autonomously.
+- [ ] Confirm elevators move autonomously while each strategy row remains editable outside its own cooldown.
 - [ ] Confirm Morning Rush is lobby-to-upper-floor traffic, while the later waves use mixed and then upper-to-lobby traffic.
 - [ ] Confirm a passenger waiting at a delivery stop boards when the elevator continues in that passenger's direction and has capacity.
 - [ ] Confirm an elevator stops for the nearest compatible passenger ahead while travelling with available capacity.

@@ -186,7 +186,12 @@ func _claim_oldest_valid_request(waiting_passengers: Array[RushPassenger]) -> Ru
 	for passenger in waiting_passengers:
 		if claimed_count >= CAPACITY - passengers.size():
 			break
-		if passenger.assigned_elevator_id == 0 and passenger.origin_floor == oldest_passenger.origin_floor and can_serve(passenger) and _travel_direction(passenger) == claim_direction and _can_claim_direction(claim_direction, passenger.wait_time):
+		var is_same_request := passenger.origin_floor == oldest_passenger.origin_floor and _travel_direction(passenger) == claim_direction
+		var can_join_claim := passenger.assigned_elevator_id == 0 \
+			and is_same_request \
+			and can_serve(passenger) \
+			and _can_claim_direction(claim_direction, passenger.wait_time)
+		if can_join_claim:
 			passenger.assigned_elevator_id = elevator_id
 			claimed_count += 1
 	return oldest_passenger
@@ -216,7 +221,14 @@ func _claim_en_route_pickup_floor(next_destination: int, waiting_passengers: Arr
 	for passenger in waiting_passengers:
 		if claimed_count >= CAPACITY - passengers.size():
 			break
-		if passenger.assigned_elevator_id == 0 and passenger.origin_floor == nearest_floor and can_serve(passenger) and signi(passenger.destination_floor - passenger.origin_floor) == travel_direction and _can_claim_direction(travel_direction, passenger.wait_time):
+		var is_at_pickup_floor := passenger.origin_floor == nearest_floor
+		var has_matching_direction := _travel_direction(passenger) == travel_direction
+		var can_join_pickup := passenger.assigned_elevator_id == 0 \
+			and is_at_pickup_floor \
+			and has_matching_direction \
+			and can_serve(passenger) \
+			and _can_claim_direction(travel_direction, passenger.wait_time)
+		if can_join_pickup:
 			passenger.assigned_elevator_id = elevator_id
 			claimed_count += 1
 	return nearest_floor
