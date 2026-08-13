@@ -53,16 +53,16 @@ func has_capacity() -> bool:
 	return passengers.size() < capacity
 
 
-## Assigned landing calls reserve seats before a car reaches them. A large
-## shared call reserves at most the car's capacity, so other requests can be
-## dispatched to cars that can actually contribute to throughput.
+## Assigned landing calls reserve only their zone-compatible riders before a
+## car reaches them. A large shared call reserves at most the free capacity,
+## leaving incompatible riders available for another car.
 func reserved_pickup_count() -> int:
 	var reserved := 0
 	var remaining_capacity := maxi(0, capacity - passengers.size())
 	for request: HallRequest in assigned_hall_requests:
 		if not request.is_active() or remaining_capacity == 0:
 			continue
-		var request_reservation := mini(request.waiting_passengers.size(), remaining_capacity)
+		var request_reservation := mini(compatible_waiting_count(request), remaining_capacity)
 		reserved += request_reservation
 		remaining_capacity -= request_reservation
 	return reserved
@@ -108,10 +108,15 @@ func can_accept_hall_request(request: HallRequest) -> bool:
 		return false
 	if behavior_rule == Behavior.DOWN_ONLY and request.direction != SimulationTypes.Direction.DOWN:
 		return false
+	return compatible_waiting_count(request) > 0
+
+
+func compatible_waiting_count(request: HallRequest) -> int:
+	var compatible_count := 0
 	for passenger: RushPassenger in request.waiting_passengers:
-		if passenger.destination_floor < allowed_min or passenger.destination_floor > allowed_max:
-			return false
-	return true
+		if _is_passenger_zone_compatible(passenger):
+			compatible_count += 1
+	return compatible_count
 
 
 func assign_hall_request(request: HallRequest) -> void:
@@ -357,7 +362,11 @@ func _board_compatible_passengers(request_manager: HallRequestManager) -> Array[
 func _can_board_passenger(passenger: RushPassenger, boarding_direction: int) -> bool:
 	return passenger.origin_floor == current_floor \
 		and passenger.requested_direction == boarding_direction \
-		and passenger.origin_floor >= allowed_min \
+		and _is_passenger_zone_compatible(passenger)
+
+
+func _is_passenger_zone_compatible(passenger: RushPassenger) -> bool:
+	return passenger.origin_floor >= allowed_min \
 		and passenger.origin_floor <= allowed_max \
 		and passenger.destination_floor >= allowed_min \
 		and passenger.destination_floor <= allowed_max

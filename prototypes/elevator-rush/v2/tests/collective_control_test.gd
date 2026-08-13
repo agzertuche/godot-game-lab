@@ -40,6 +40,7 @@ func _init() -> void:
 	_test_stop_deduplicates_boarded_destinations()
 	_test_stop_leaves_incompatible_direction_waiting()
 	_test_stop_releases_late_out_of_zone_shared_waiter()
+	_test_shared_call_splits_across_zoned_elevators()
 	_test_arrival_signal_is_emitted_once_per_stop_lifecycle()
 	_test_deterministic_two_car_collective_scenario()
 	if _failures.is_empty():
@@ -425,6 +426,52 @@ func _test_stop_releases_late_out_of_zone_shared_waiter() -> void:
 	_expect(out_of_zone_passenger.state == SimulationTypes.PassengerState.WAITING, "late out-of-zone shared waiter must remain active demand")
 	_expect(out_of_zone_passenger.assigned_elevator_id == 0, "out-of-zone waiter should be released for another eligible car")
 	_expect(request.assigned_elevator_id == 0 and request.is_active(), "incomplete out-of-zone shared request should be reoffered")
+
+
+func _test_shared_call_splits_across_zoned_elevators() -> void:
+	var manager := HallRequestManager.new(10)
+	var dispatcher = _new_dispatcher()
+	var local_car := _new_controller(1, SimulationTypes.Direction.IDLE, 1)
+	local_car.configure_strategy(1, 5, 1, ElevatorController.Behavior.NORMAL)
+	var through_car := _new_controller(1, SimulationTypes.Direction.IDLE, 2)
+	through_car.configure_strategy(1, 10, 1, ElevatorController.Behavior.NORMAL)
+	var local_rider := _passenger(1, 4, 0.0)
+	var upper_rider := _passenger(1, 8, 0.0)
+	var riders: Array[RushPassenger] = [local_rider, upper_rider]
+	var request = manager.register_waiting_passenger(local_rider, 0.0)
+	manager.register_waiting_passenger(upper_rider, 0.0)
+	var controllers: Array[ElevatorController] = [local_car, through_car]
+	var now := 0.0
+	var disallowed_boarding := false
+
+	for step: int in 600:
+		dispatcher.assign_unassigned_requests(controllers, manager.get_unassigned_requests(), now)
+		for controller: ElevatorController in controllers:
+			if upper_rider in local_car.passengers:
+				disallowed_boarding = true
+			if controller.movement_state == SimulationTypes.MovementState.MOVING:
+				controller.advance_travel(0.1)
+			elif controller.movement_state == SimulationTypes.MovementState.STOPPED:
+				if controller.arrived_service_stop and controller.door_state == SimulationTypes.DoorState.CLOSED:
+					controller.begin_service_dwell()
+				elif controller.arrived_service_stop and controller.advance_service_dwell(0.1):
+					controller.process_stop(manager, now)
+				elif not controller.arrived_service_stop:
+					controller.complete_stop()
+			else:
+				var next := controller.next_stop()
+				if next == controller.current_floor and controller.target_is_service_stop:
+					controller.arrive_at(next)
+				elif next != 0:
+					controller.begin_moving_to(next)
+		now += 0.1
+		if _all_completed(riders):
+			break
+
+	_expect(request != null and request.waiting_passengers.is_empty(), "shared Floor 1 UP request should clear after compatible subsets board")
+	_expect(local_rider.state == SimulationTypes.PassengerState.COMPLETED and upper_rider.state == SimulationTypes.PassengerState.COMPLETED, "both zoned shared-call riders should complete")
+	_expect(not disallowed_boarding, "local-zone car must never board the rider headed to Floor 8")
+	_expect(manager.get_active_requests().is_empty(), "split shared-call completion should leave no active hall demand")
 
 
 func _test_arrival_signal_is_emitted_once_per_stop_lifecycle() -> void:
