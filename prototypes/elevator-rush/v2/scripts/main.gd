@@ -28,7 +28,6 @@ var total_wait_time := 0.0
 var longest_wait_time := 0.0
 var current_level_index := 0
 var last_grade := 0.0
-var adaptive_chaos_seed := 0
 var adaptive_chaos_schedule: Array[Dictionary] = []
 
 @onready var elevators_root: Node2D = $Building/Elevators
@@ -162,10 +161,10 @@ func _reset_wave_state() -> void:
 	delivered_count = 0
 	total_wait_time = 0.0
 	longest_wait_time = 0.0
-	passenger_schedule = _build_fixed_schedule()
+	passenger_schedule = _build_schedule()
 
 
-func _build_fixed_schedule() -> Array[Dictionary]:
+func _build_schedule() -> Array[Dictionary]:
 	var level := _current_level()
 	if str(level["pattern"]) == "adaptive":
 		return _get_adaptive_chaos_schedule()
@@ -188,10 +187,9 @@ func _get_adaptive_chaos_schedule() -> Array[Dictionary]:
 	if adaptive_chaos_schedule.is_empty():
 		var seed_rng := RandomNumberGenerator.new()
 		seed_rng.randomize()
-		adaptive_chaos_seed = seed_rng.randi()
 
 		var rng := RandomNumberGenerator.new()
-		rng.seed = adaptive_chaos_seed
+		rng.seed = seed_rng.randi()
 		var schedule: Array[Dictionary] = []
 		for index in range(int(_current_level()["passengers"])):
 			var demand := _create_level_demand(index, "adaptive", rng)
