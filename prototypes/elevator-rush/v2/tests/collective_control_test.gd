@@ -9,6 +9,7 @@ const ELEVATOR_DISPATCHER_PATH := "res://scripts/simulation/elevator_dispatcher.
 
 var _failures: Array[String] = []
 var _completed_request_count := 0
+var _arrival_signal_count := 0
 
 
 func _init() -> void:
@@ -34,6 +35,7 @@ func _init() -> void:
 	_test_stop_reoffers_excess_capacity_demand()
 	_test_stop_deduplicates_boarded_destinations()
 	_test_stop_leaves_incompatible_direction_waiting()
+	_test_arrival_signal_is_emitted_once_per_stop_lifecycle()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -287,6 +289,7 @@ func _test_stop_exits_before_boarding_when_car_is_full() -> void:
 	var request = manager.register_waiting_passenger(waiting_passenger, 0.0)
 	controller.assign_hall_request(request)
 
+	controller.arrive_at(5)
 	var events: Dictionary = controller.process_stop(manager, 10.0)
 	_expect(events["exited"].size() == 1, "a rider should exit before pickup processing")
 	_expect(events["boarded"].size() == 1, "dropoff capacity should permit a waiting passenger to board")
@@ -304,6 +307,7 @@ func _test_stop_reoffers_excess_capacity_demand() -> void:
 	manager.register_waiting_passenger(second, 0.0)
 	controller.assign_hall_request(request)
 
+	controller.arrive_at(5)
 	controller.process_stop(manager, 10.0)
 	_expect(first.state == SimulationTypes.PassengerState.RIDING, "the first compatible passenger should board")
 	_expect(second.state == SimulationTypes.PassengerState.WAITING, "excess passenger should become unassigned waiting demand")
@@ -328,6 +332,7 @@ func _test_stop_deduplicates_boarded_destinations() -> void:
 	manager.register_waiting_passenger(second, 0.0)
 	controller.assign_hall_request(request)
 
+	controller.arrive_at(5)
 	controller.process_stop(manager, 10.0)
 	_expect(controller.passengers.size() == 2, "both compatible passengers should board when capacity permits")
 	_expect(controller.destination_requests.size() == 1 and controller.destination_requests.has(8), "matching rider destinations should remain one physical stop")
@@ -340,10 +345,23 @@ func _test_stop_leaves_incompatible_direction_waiting() -> void:
 	var request = manager.register_waiting_passenger(down_passenger, 0.0)
 	controller.assign_hall_request(request)
 
+	controller.arrive_at(5)
 	controller.process_stop(manager, 10.0)
 	_expect(controller.passengers.is_empty(), "UP service must not board a DOWN passenger")
 	_expect(down_passenger.state == SimulationTypes.PassengerState.ASSIGNED, "incompatible passenger should remain assigned for a later reverse")
 	_expect(request.is_active(), "incompatible hall request must remain active")
+
+
+func _test_arrival_signal_is_emitted_once_per_stop_lifecycle() -> void:
+	var manager := HallRequestManager.new(10)
+	var controller := _new_controller(1, SimulationTypes.Direction.IDLE, 1)
+	_arrival_signal_count = 0
+	controller.elevator_arrived.connect(_record_elevator_arrival)
+
+	controller.begin_moving_to(5)
+	controller.arrive_at(5)
+	controller.process_stop(manager, 10.0)
+	_expect(_arrival_signal_count == 1, "arrive_at followed by process_stop must emit one arrival event")
 
 
 func _new_controller(floor: int, service_direction: int, identifier: int = 0):
@@ -382,6 +400,10 @@ func _passenger(origin: int, destination: int, request_time: float) -> RushPasse
 
 func _record_request_completion(_request) -> void:
 	_completed_request_count += 1
+
+
+func _record_elevator_arrival(_floor: int) -> void:
+	_arrival_signal_count += 1
 
 
 func _expect(condition: bool, message: String) -> void:

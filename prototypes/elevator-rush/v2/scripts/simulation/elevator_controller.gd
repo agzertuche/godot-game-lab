@@ -152,9 +152,7 @@ func open_doors() -> void:
 ## served hall request is released to the dispatcher so another car can serve
 ## the remaining demand rather than waiting on a full elevator indefinitely.
 func process_stop(request_manager: HallRequestManager, now: float) -> Dictionary:
-	movement_state = SimulationTypes.MovementState.STOPPED
-	target_floor = 0
-	elevator_arrived.emit(current_floor)
+	assert(movement_state == SimulationTypes.MovementState.STOPPED, "process_stop requires arrive_at before transfers")
 	open_doors()
 
 	var exited: Array[RushPassenger] = _exit_passengers_at_current_floor()
