@@ -28,6 +28,7 @@ func _init() -> void:
 	_test_dispatcher_assigns_all_shared_waiters()
 	_test_late_shared_waiter_inherits_existing_assignment()
 	_test_dispatcher_breaks_ties_by_elevator_id()
+	_test_dispatcher_sorts_requests_before_costs_can_change()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -103,9 +104,9 @@ func _test_request_remains_active_until_last_passenger_leaves() -> void:
 
 func _test_upward_collective_control_orders_compatible_stops() -> void:
 	var controller = _new_controller(2, SimulationTypes.Direction.UP)
-	controller.add_hall_request(_request(3, SimulationTypes.Direction.UP))
-	controller.add_hall_request(_request(4, SimulationTypes.Direction.DOWN))
-	controller.add_hall_request(_request(6, SimulationTypes.Direction.UP))
+	controller.assign_hall_request(_request(3, SimulationTypes.Direction.UP))
+	controller.assign_hall_request(_request(4, SimulationTypes.Direction.DOWN))
+	controller.assign_hall_request(_request(6, SimulationTypes.Direction.UP))
 	controller.add_destination_request(7)
 
 	_expect(controller.next_stop() == 3, "UP controller should stop first at compatible UP call on floor 3")
@@ -119,9 +120,9 @@ func _test_upward_collective_control_orders_compatible_stops() -> void:
 
 func _test_downward_collective_control_orders_compatible_stops() -> void:
 	var controller = _new_controller(9, SimulationTypes.Direction.DOWN)
-	controller.add_hall_request(_request(8, SimulationTypes.Direction.DOWN))
-	controller.add_hall_request(_request(7, SimulationTypes.Direction.UP))
-	controller.add_hall_request(_request(4, SimulationTypes.Direction.DOWN))
+	controller.assign_hall_request(_request(8, SimulationTypes.Direction.DOWN))
+	controller.assign_hall_request(_request(7, SimulationTypes.Direction.UP))
+	controller.assign_hall_request(_request(4, SimulationTypes.Direction.DOWN))
 	controller.add_destination_request(2)
 
 	_expect(controller.next_stop() == 8, "DOWN controller should stop first at compatible DOWN call on floor 8")
@@ -135,7 +136,7 @@ func _test_downward_collective_control_orders_compatible_stops() -> void:
 
 func _test_idle_controller_travels_to_pickup_before_adopting_request_direction() -> void:
 	var controller = _new_controller(4, SimulationTypes.Direction.IDLE)
-	controller.add_hall_request(_request(8, SimulationTypes.Direction.DOWN))
+	controller.assign_hall_request(_request(8, SimulationTypes.Direction.DOWN))
 
 	_expect(controller.next_stop() == 8, "idle controller should choose its assigned pickup floor")
 	_expect(controller.service_direction == SimulationTypes.Direction.IDLE, "idle controller should not adopt passenger direction before pickup")
@@ -146,7 +147,7 @@ func _test_idle_controller_travels_to_pickup_before_adopting_request_direction()
 
 func _test_terminal_turnaround_adopts_opposite_direction_at_current_floor() -> void:
 	var controller = _new_controller(7, SimulationTypes.Direction.UP)
-	controller.add_hall_request(_request(7, SimulationTypes.Direction.DOWN))
+	controller.assign_hall_request(_request(7, SimulationTypes.Direction.DOWN))
 
 	controller.recalculate_service_direction()
 	_expect(controller.service_direction == SimulationTypes.Direction.DOWN, "terminal UP controller should adopt current-floor DOWN request instead of becoming idle")
@@ -238,6 +239,22 @@ func _test_dispatcher_breaks_ties_by_elevator_id() -> void:
 	_expect(request.assigned_elevator_id == 1, "equal dispatcher costs should choose the lower elevator id deterministically")
 
 
+func _test_dispatcher_sorts_requests_before_costs_can_change() -> void:
+	var dispatcher = _new_dispatcher()
+	var lower_controller := _new_controller(1, SimulationTypes.Direction.IDLE, 1)
+	var upper_controller := _new_controller(10, SimulationTypes.Direction.IDLE, 2)
+	var earlier_request = _request(4, SimulationTypes.Direction.UP, 0.0)
+	var later_request = _request(5, SimulationTypes.Direction.UP, 1.0)
+	var controllers: Array[ElevatorController] = [lower_controller, upper_controller]
+	var reversed_requests: Array[HallRequest] = [later_request, earlier_request]
+
+	# The floor 4 call creates an intermediate-stop penalty for floor 5. Sorting
+	# by created_at must make this result independent from source/map iteration.
+	dispatcher.assign_unassigned_requests(controllers, reversed_requests, 2.0)
+	_expect(earlier_request.assigned_elevator_id == 1, "the oldest request should be assigned before a later request")
+	_expect(later_request.assigned_elevator_id == 2, "later assignment should see the earlier controller stop regardless of input order")
+
+
 func _new_controller(floor: int, service_direction: int, identifier: int = 0):
 	var controller_script = load(ELEVATOR_CONTROLLER_PATH)
 	_expect(controller_script != null, "elevator controller script should exist")
@@ -285,7 +302,7 @@ class _MissingController:
 	var current_floor := 0
 	var service_direction := SimulationTypes.Direction.IDLE
 
-	func add_hall_request(_request) -> void:
+	func assign_hall_request(_request) -> void:
 		pass
 
 	func add_destination_request(_floor: int) -> void:

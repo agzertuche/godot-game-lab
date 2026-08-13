@@ -33,7 +33,9 @@ func assign_unassigned_requests(
 	requests: Array[HallRequest],
 	now: float,
 ) -> void:
-	for request: HallRequest in requests:
+	var ordered_requests := requests.duplicate()
+	ordered_requests.sort_custom(_sort_requests)
+	for request: HallRequest in ordered_requests:
 		if not request.is_active() or request.assigned_elevator_id != 0:
 			continue
 
@@ -48,8 +50,7 @@ func assign_unassigned_requests(
 		if selected_controller == null:
 			continue
 
-		selected_controller.add_hall_request(request)
-		_assign_waiting_passengers(request, selected_controller.elevator_id)
+		selected_controller.assign_hall_request(request)
 		hall_request_assigned.emit(request, selected_controller)
 
 
@@ -97,8 +98,9 @@ func _should_select(
 	return candidate.elevator_id < current_selection.elevator_id
 
 
-func _assign_waiting_passengers(request: HallRequest, elevator_id: int) -> void:
-	for passenger: RushPassenger in request.waiting_passengers:
-		passenger.assigned_elevator_id = elevator_id
-		if passenger.state == SimulationTypes.PassengerState.WAITING:
-			passenger.state = SimulationTypes.PassengerState.ASSIGNED
+func _sort_requests(left: HallRequest, right: HallRequest) -> bool:
+	if not is_equal_approx(left.created_at, right.created_at):
+		return left.created_at < right.created_at
+	if left.floor != right.floor:
+		return left.floor < right.floor
+	return left.direction < right.direction

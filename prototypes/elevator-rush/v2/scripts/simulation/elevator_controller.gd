@@ -33,11 +33,16 @@ func has_capacity() -> bool:
 	return passengers.size() < capacity
 
 
-func add_hall_request(request: HallRequest) -> void:
+func assign_hall_request(request: HallRequest) -> void:
+	if request.assigned_elevator_id != 0 and request.assigned_elevator_id != elevator_id:
+		return
 	if request not in assigned_hall_requests:
 		assigned_hall_requests.append(request)
-	if elevator_id != 0:
-		request.assigned_elevator_id = elevator_id
+	request.assigned_elevator_id = elevator_id
+	for passenger: RushPassenger in request.waiting_passengers:
+		passenger.assigned_elevator_id = elevator_id
+		if passenger.state == SimulationTypes.PassengerState.WAITING:
+			passenger.state = SimulationTypes.PassengerState.ASSIGNED
 
 
 func remove_hall_request(request: HallRequest) -> void:
