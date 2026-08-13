@@ -15,7 +15,7 @@ V2 is a separate Godot 4 prototype. It tests a tower-defense-like loop: configur
 - Four 60-second waves: three fixed-seed levels—Morning Rush (50 passengers), Midday Exchange (54), and Evening Exit (58)—followed by Adaptive Chaos (60 passengers).
 - Adaptive Chaos generates a mixed passenger schedule when it is unlocked. Its schedule remains fixed for level restarts, failed-run retries, and **REPLAY SAME CHALLENGE**, so strategy comparisons stay fair. **NEW CHALLENGE** generates a new Adaptive Chaos schedule.
 - Each elevator gets a contiguous allowed floor range, one staging floor, and a behavior: `Normal`, `Up Bias`, `Down Bias`, `Up Only`, or `Down Only`.
-- Dispatch is deliberately simple: a shared dispatcher assigns grouped hall requests to eligible elevators. Each elevator then serves compatible requests in its current direction, while rider destinations become deduplicated destination requests. This request-driven foundation keeps hall demand, routing, and presentation separate.
+- The request-driven dispatch foundation is being introduced in small steps: it will use a shared dispatcher to assign grouped hall requests to eligible elevators. Elevators will then serve compatible requests in their current direction, while rider destinations become deduplicated destination requests. This keeps hall demand, routing, and presentation separate.
 - During a wave, the player may change coverage, staging, and behavior. Each change is pending until its elevator completes committed work and becomes idle, then applies after an 8-second per-elevator cooldown.
 - No manual movement or passenger commands.
 
