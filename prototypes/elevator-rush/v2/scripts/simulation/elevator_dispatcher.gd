@@ -42,6 +42,8 @@ func assign_unassigned_requests(
 		var selected_controller: ElevatorController = null
 		var selected_cost := INF
 		for controller: ElevatorController in controllers:
+			if not controller.has_capacity():
+				continue
 			var cost := calculate_assignment_cost(controller, request, now)
 			if _should_select(controller, cost, selected_controller, selected_cost):
 				selected_controller = controller

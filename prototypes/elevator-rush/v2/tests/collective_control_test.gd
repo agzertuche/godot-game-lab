@@ -29,6 +29,7 @@ func _init() -> void:
 	_test_late_shared_waiter_inherits_existing_assignment()
 	_test_dispatcher_breaks_ties_by_elevator_id()
 	_test_dispatcher_sorts_requests_before_costs_can_change()
+	_test_dispatcher_skips_full_controller()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -253,6 +254,20 @@ func _test_dispatcher_sorts_requests_before_costs_can_change() -> void:
 	dispatcher.assign_unassigned_requests(controllers, reversed_requests, 2.0)
 	_expect(earlier_request.assigned_elevator_id == 1, "the oldest request should be assigned before a later request")
 	_expect(later_request.assigned_elevator_id == 2, "later assignment should see the earlier controller stop regardless of input order")
+
+
+func _test_dispatcher_skips_full_controller() -> void:
+	var dispatcher = _new_dispatcher()
+	var full_nearby_controller := _new_controller(4, SimulationTypes.Direction.IDLE, 1)
+	full_nearby_controller.capacity = 1
+	full_nearby_controller.passengers.append(_passenger(1, 2, 0.0))
+	var available_controller := _new_controller(9, SimulationTypes.Direction.IDLE, 2)
+	var request = _request(5, SimulationTypes.Direction.UP)
+	var controllers: Array[ElevatorController] = [full_nearby_controller, available_controller]
+	var requests: Array[HallRequest] = [request]
+
+	dispatcher.assign_unassigned_requests(controllers, requests, 1.0)
+	_expect(request.assigned_elevator_id == 2, "a full controller must be skipped even when it has the lower travel cost")
 
 
 func _new_controller(floor: int, service_direction: int, identifier: int = 0):
