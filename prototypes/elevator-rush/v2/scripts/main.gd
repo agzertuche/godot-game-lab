@@ -385,6 +385,7 @@ func _return_to_preparation() -> void:
 	preparation_panel.visible = true
 	phase_label.text = "PREPARATION — configure strategy for Level %d." % (current_level_index + 1)
 	if str(_current_level()["pattern"]) == "adaptive":
+		_get_adaptive_chaos_schedule()
 		simulation_hud.text = "Wave: ready — generated challenge is ready to replay."
 	else:
 		simulation_hud.text = "Wave: ready — fixed seed %d" % _current_level()["seed"]
@@ -398,8 +399,7 @@ func _update_ui() -> void:
 		start_button.text = "START LEVEL %d — %d PASSENGERS" % [current_level_index + 1, _current_level()["passengers"]]
 		phase_label.text = "PREPARATION — configure coverage, staging, and behavior."
 		if str(_current_level()["pattern"]) == "adaptive":
-			var adaptive_status := "Same generated challenge every replay." if not adaptive_chaos_schedule.is_empty() else "A new challenge locks in when started."
-			simulation_hud.text = "Wave: %d passengers over 60 seconds. %s" % [_current_level()["passengers"], adaptive_status]
+			simulation_hud.text = "Wave: %d passengers over 60 seconds. Same generated challenge every replay." % _current_level()["passengers"]
 		else:
 			simulation_hud.text = "Wave: %d passengers over 60 seconds. Same demand every replay." % _current_level()["passengers"]
 		restart_button.visible = false
