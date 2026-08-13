@@ -15,7 +15,7 @@ V2 is a separate Godot 4 prototype. It tests a tower-defense-like loop: configur
 - Four 60-second waves: three fixed-seed levels—Morning Rush (50 passengers), Midday Exchange (54), and Evening Exit (58)—followed by Adaptive Chaos (60 passengers).
 - Adaptive Chaos generates a mixed passenger schedule when it is unlocked. Its schedule remains fixed for level restarts, failed-run retries, and **REPLAY SAME CHALLENGE**, so strategy comparisons stay fair. **NEW CHALLENGE** generates a new Adaptive Chaos schedule.
 - Each elevator gets a contiguous allowed floor range, one staging floor, and a behavior: `Normal`, `Up Bias`, `Down Bias`, `Up Only`, or `Down Only`.
-- The request-driven dispatch foundation is being introduced in small steps: it will use a shared dispatcher to assign grouped hall requests to eligible elevators. Elevators will then serve compatible requests in their current direction, while rider destinations become deduplicated destination requests. This keeps hall demand, routing, and presentation separate.
+- Passenger demand drives the simulation: waiting passengers create shared floor-and-direction hall requests, the dispatcher assigns each request, and each elevator controller autonomously serves compatible calls. Rider destinations become deduplicated in-car destination requests. Neither the player nor the presentation tells a car where to go.
 - During a wave, the player may change coverage, staging, and behavior. Each change is pending until its elevator completes committed work and becomes idle, then applies after an 8-second per-elevator cooldown.
 - No manual movement or passenger commands.
 
@@ -39,6 +39,43 @@ Results also show a weighted `0–10` grade to compare the same wave across stra
 - **Service Direction**: the elevator's current collection direction: `UP`, `DOWN`, or `IDLE`. It remains meaningful while the car is stopped.
 - **Movement State**: whether the car is `IDLE`, `MOVING`, or `STOPPED`; it is separate from service direction.
 - **Door State**: the independent door lifecycle: `CLOSED`, `OPENING`, `OPEN`, or `CLOSING`.
+
+## Simulation Architecture
+
+The autonomous core is deliberately separate from the scene/UI layer:
+
+```text
+RushPassenger -> HallRequestManager -> ElevatorDispatcher -> ElevatorController
+                                                    -> presentation observes state/signals
+```
+
+- `RushPassenger` stores an origin, destination, derived requested direction, request time, assignment, and lifecycle (`WAITING`, `ASSIGNED`, `BOARDING`, `RIDING`, `EXITING`, `COMPLETED`).
+- `HallRequestManager` consolidates waiting passengers with the same floor and direction. It keeps a request active until every compatible passenger boards, including after a full car has only taken part of a group.
+- `ElevatorDispatcher` owns global assignment. Its isolated deterministic cost combines pickup distance, intermediate stops, direction mismatch, current load, request age, and the configured soft direction bias. This scorer is the future replacement point for smarter dispatch.
+- `ElevatorController` owns discrete logical movement, service direction, doors, capacity, assigned hall calls, and destination stops. While moving up it serves destination stops and UP hall requests in ascending order; DOWN behavior mirrors it. It processes exits before boarding and only reverses when its current-direction work is exhausted.
+- Presentation reads controller state and can listen for `hall_request_created`, `hall_request_assigned`, `elevator_arrived`, `doors_opened`, `passenger_boarded`, `passenger_exited`, `request_completed`, and direction-change events. Tweens and UI callbacks do not make routing decisions.
+
+The simulation objects intentionally remain usable without `Main` or any visual node. For temporary debugging, inspect each passenger's trip/state/assignment and each controller's floor, direction, rider count, assigned hall calls, destination stops, and next stop in the debugger or structured test output.
+
+## Deterministic Simulation Check
+
+`tests/collective_control_test.gd` is a headless `SceneTree` test runner. In addition to focused request, routing, capacity, and dispatcher checks, it runs a fixed-timestep two-car scenario:
+
+```text
+Elevator A: Floor 1     Elevator B: Floor 8
+P1 2 -> 7              P2 4 -> 9
+P3 6 -> 1              P4 8 -> 3
+P5 3 -> 10             extra rider 2 -> 8 (shared Floor 2 UP call)
+extra rider 5 -> 2 (forces a collective return after upward work)
+```
+
+It verifies consolidation, deterministic assignment, direction-compatible boarding, capacity, destination delivery, reversal, and removal of completed demand without creating `Main` or presentation nodes. Run it when Godot is available:
+
+```bash
+godot --headless --path prototypes/elevator-rush/v2 -s res://tests/collective_control_test.gd
+```
+
+Intentional limitations: this is a simple deterministic collective-selective dispatcher, not an optimal real-world dispatch algorithm. It does not yet model predictive traffic, destination dispatch, passenger satisfaction, breakdowns, upgrades, economy, or player tactical overrides.
 
 ## Manual Test Checklist
 

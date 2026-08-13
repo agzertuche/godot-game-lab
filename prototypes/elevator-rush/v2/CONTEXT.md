@@ -67,3 +67,27 @@ _Avoid_: Score, rating
 **Change Summary**:
 A compact per-elevator results line listing the final behavior rule and number of live strategy changes made during the wave. It is not a full replay or event timeline.
 _Avoid_: Replay log, audit trail
+
+**Request-Driven Simulation**:
+The autonomous demand-to-delivery chain: passenger -> shared hall request -> dispatcher assignment -> elevator controller pickup -> destination request -> dropoff. The player configures rules, but does not issue movement commands.
+_Avoid_: Manual routing, click-to-move
+
+**Hall Request Manager**:
+The simulation service that groups waiting passengers by origin floor and requested direction, maintains each call while demand remains, and releases partial demand after a full elevator boards only some riders.
+_Avoid_: Per-passenger elevator target
+
+**Elevator Dispatcher**:
+The only global request assignment authority. Its current deterministic scorer weighs pickup distance, intermediate stops, directional fit, car load, and request age; the scorer is intentionally isolated for replacement.
+_Avoid_: Elevator-owned global dispatch, optimal dispatch claim
+
+**Elevator Controller**:
+Simulation-only owner of an individual car's logical movement, service direction, door lifecycle, capacity, assigned hall requests, and deduplicated destination requests. Presentation observes it but cannot choose its route.
+_Avoid_: Visual elevator node, animation-driven logic
+
+**Collective Selective Service**:
+While serving `UP`, a controller takes destination stops and UP hall requests in ascending order, leaving DOWN calls for its return; `DOWN` is the mirror behavior. It reverses only when no valid work remains ahead.
+_Avoid_: Nearest-call-only routing, arbitrary reversal
+
+**Deterministic Simulation Check**:
+A headless, fixed-timestep test scenario that executes hall registration, dispatch, travel, doors, transfer ordering, and completion without `Main` or visual nodes. It is a repeatable behavior specification, not a recorded gameplay run.
+_Avoid_: Manual-only verification, UI test

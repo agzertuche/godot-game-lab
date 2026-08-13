@@ -39,6 +39,7 @@ func _init() -> void:
 	_test_stop_deduplicates_boarded_destinations()
 	_test_stop_leaves_incompatible_direction_waiting()
 	_test_arrival_signal_is_emitted_once_per_stop_lifecycle()
+	_test_deterministic_two_car_collective_scenario()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -398,6 +399,108 @@ func _test_arrival_signal_is_emitted_once_per_stop_lifecycle() -> void:
 	_arrive_for_service(controller, 5)
 	controller.process_stop(manager, 10.0)
 	_expect(_arrival_signal_count == 1, "arrive_at followed by process_stop must emit one arrival event")
+
+
+## End-to-end, fixed-timestep specification for the request-driven simulation.
+## This deliberately talks only to the public HallRequestManager,
+## ElevatorDispatcher, and ElevatorController APIs. It is not a Main/UI test.
+func _test_deterministic_two_car_collective_scenario() -> void:
+	var manager := HallRequestManager.new(10)
+	var dispatcher := _new_dispatcher()
+	var elevator_a := _new_controller(1, SimulationTypes.Direction.IDLE, 1)
+	var elevator_b := _new_controller(8, SimulationTypes.Direction.IDLE, 2)
+	# Keep B available for P4's Floor 8 -> 3 trip while deliberately leaving
+	# the two trips ending below Floor 3 to A. That creates a real UP-to-DOWN
+	# turnaround after A clears its upward car calls.
+	elevator_b.configure_strategy(3, 10, 8, ElevatorController.Behavior.NORMAL)
+	var controllers: Array[ElevatorController] = [elevator_a, elevator_b]
+	var passengers: Array[RushPassenger] = [
+		_passenger(2, 7, 0.0), # P1
+		_passenger(4, 9, 0.0), # P2
+		_passenger(6, 1, 0.0), # P3
+		_passenger(8, 3, 0.0), # P4
+		_passenger(3, 10, 0.0), # P5
+	]
+	# An additional same-floor UP passenger proves consolidation in the complete
+	# flow, rather than only in the focused HallRequestManager unit test.
+	var shared_up_waiter := _passenger(2, 8, 0.0)
+	passengers.append(shared_up_waiter)
+	var turnaround_waiter := _passenger(5, 2, 0.0)
+	passengers.append(turnaround_waiter)
+
+	for passenger: RushPassenger in passengers:
+		manager.register_waiting_passenger(passenger, 0.0)
+	_expect(manager.get_active_requests().size() == 6, "two Floor 2 UP riders should consolidate into one of six active hall requests")
+	var initial_floor_two_request := _find_request(manager, 2, SimulationTypes.Direction.UP)
+	var floor_eight_down_request := _find_request(manager, 8, SimulationTypes.Direction.DOWN)
+	dispatcher.assign_unassigned_requests(controllers, manager.get_unassigned_requests(), 0.0)
+	_expect(floor_eight_down_request.assigned_elevator_id == elevator_b.elevator_id, "the dispatcher should give the Floor 8 DOWN call to the already-staged nearby elevator")
+
+	var now := 0.0
+	var max_load := 0
+	var saw_upward_car_pass_down_call := false
+	var saw_reversal := false
+	var previous_directions := {
+		elevator_a.elevator_id: elevator_a.service_direction,
+		elevator_b.elevator_id: elevator_b.service_direction,
+	}
+
+	# Fixed 0.1 s logical ticks keep this scenario deterministic and ensure no
+	# simulation transition is driven by visual timing or an animation callback.
+	for step: int in 1800:
+		dispatcher.assign_unassigned_requests(controllers, manager.get_unassigned_requests(), now)
+		for controller: ElevatorController in controllers:
+			if controller.movement_state == SimulationTypes.MovementState.MOVING:
+				controller.advance_travel(0.1)
+			elif controller.movement_state == SimulationTypes.MovementState.STOPPED:
+				if controller.arrived_service_stop and controller.door_state == SimulationTypes.DoorState.CLOSED:
+					controller.begin_service_dwell()
+				elif controller.arrived_service_stop and controller.advance_service_dwell(0.1):
+					var transfer_events: Dictionary = controller.process_stop(manager, now)
+					for boarded: RushPassenger in transfer_events["boarded"]:
+						if controller.service_direction == SimulationTypes.Direction.UP and boarded.requested_direction == SimulationTypes.Direction.DOWN:
+							saw_upward_car_pass_down_call = true
+				elif not controller.arrived_service_stop:
+					controller.complete_stop()
+			else:
+				var next := controller.next_stop()
+				if next == controller.current_floor and controller.target_is_service_stop:
+					controller.arrive_at(next)
+				elif next != 0:
+					controller.begin_moving_to(next)
+
+			max_load = maxi(max_load, controller.passengers.size())
+			var previous_direction: int = previous_directions[controller.elevator_id]
+			if previous_direction != SimulationTypes.Direction.IDLE \
+				and controller.service_direction == -previous_direction:
+				saw_reversal = true
+			previous_directions[controller.elevator_id] = controller.service_direction
+
+		now += 0.1
+		if _all_completed(passengers):
+			break
+
+	_expect(initial_floor_two_request.waiting_passengers.is_empty(), "the consolidated Floor 2 UP request should clear only after both riders board")
+	_expect(_all_completed(passengers), "all fixed-scenario passengers should complete within the bounded simulation time")
+	_expect(max_load <= ElevatorController.CAPACITY, "the controller must never exceed its passenger capacity")
+	_expect(not saw_upward_car_pass_down_call, "UP collection must not board a DOWN hall passenger en route")
+	_expect(saw_reversal, "a controller should reverse only after its current-direction work is exhausted")
+	_expect(elevator_a.destination_requests.is_empty() and elevator_b.destination_requests.is_empty(), "all boarded passenger destinations should be respected and cleared after dropoff")
+	_expect(manager.get_active_requests().is_empty(), "completed passengers should leave no active hall demand")
+
+
+func _all_completed(passengers: Array[RushPassenger]) -> bool:
+	for passenger: RushPassenger in passengers:
+		if passenger.state != SimulationTypes.PassengerState.COMPLETED:
+			return false
+	return true
+
+
+func _find_request(manager: HallRequestManager, floor: int, direction: int) -> HallRequest:
+	for request: HallRequest in manager.get_active_requests():
+		if request.floor == floor and request.direction == direction:
+			return request
+	return null
 
 
 func _new_controller(floor: int, service_direction: int, identifier: int = 0):
