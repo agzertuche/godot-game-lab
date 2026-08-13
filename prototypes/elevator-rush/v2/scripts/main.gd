@@ -306,8 +306,14 @@ func _tick_elevator(elevator: RushElevator, delta: float) -> void:
 		elevator.busy_time += delta
 		elevator.sync_presentation()
 		if controller.movement_state == SimulationTypes.MovementState.STOPPED:
-			elevator.stop_count += 1
+			_handle_logical_arrival(elevator)
+		return
+
+	if controller.movement_state == SimulationTypes.MovementState.STOPPED:
+		elevator.busy_time += delta
+		if controller.advance_service_dwell(delta):
 			_process_controller_stop(elevator)
+		elevator.sync_presentation()
 		return
 
 	var next_stop := controller.next_stop()
@@ -316,10 +322,20 @@ func _tick_elevator(elevator: RushElevator, delta: float) -> void:
 		return
 	if next_stop == controller.current_floor:
 		controller.arrive_at(next_stop)
-		elevator.stop_count += 1
-		_process_controller_stop(elevator)
+		_handle_logical_arrival(elevator)
 		return
 	controller.begin_moving_to(next_stop)
+	elevator.sync_presentation()
+
+
+func _handle_logical_arrival(elevator: RushElevator) -> void:
+	var controller := elevator.controller
+	if not controller.arrived_service_stop:
+		controller.complete_stop()
+		elevator.sync_presentation()
+		return
+	elevator.stop_count += 1
+	controller.begin_service_dwell()
 	elevator.sync_presentation()
 
 

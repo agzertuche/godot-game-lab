@@ -123,7 +123,12 @@ func sync_presentation() -> void:
 	direction = signi(target_floor - current_floor) if target_floor != 0 else 0
 	if direction != 0:
 		last_travel_direction = direction
-	state = State.MOVING if controller.movement_state == SimulationTypes.MovementState.MOVING else State.IDLE
+	if controller.door_state == SimulationTypes.DoorState.OPEN:
+		state = State.BOARDING
+	elif controller.movement_state == SimulationTypes.MovementState.MOVING:
+		state = State.MOVING
+	else:
+		state = State.IDLE
 	passengers = controller.passengers
 	position.y = _floor_y_for_travel_position(controller.travel_floor)
 	queue_redraw()

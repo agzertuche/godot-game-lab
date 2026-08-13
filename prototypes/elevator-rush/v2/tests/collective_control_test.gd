@@ -26,6 +26,7 @@ func _init() -> void:
 	_test_terminal_turnaround_adopts_opposite_direction_at_current_floor()
 	_test_destination_requests_are_deduplicated()
 	_test_controller_owns_movement_state_transitions()
+	_test_service_dwell_and_staging_arrivals()
 	_test_dispatcher_prefers_lower_cost_compatible_controller()
 	_test_dispatcher_prioritizes_aged_request()
 	_test_dispatcher_assigns_all_shared_waiters()
@@ -195,6 +196,26 @@ func _test_controller_owns_movement_state_transitions() -> void:
 	_expect(controller.movement_state == SimulationTypes.MovementState.IDLE, "controller should return to IDLE after stop processing")
 
 
+func _test_service_dwell_and_staging_arrivals() -> void:
+	var service_controller = _new_controller(1, SimulationTypes.Direction.IDLE)
+	service_controller.target_is_service_stop = true
+	service_controller.arrive_at(1)
+	service_controller.begin_service_dwell()
+	_expect(service_controller.door_state == SimulationTypes.DoorState.OPEN, "service arrival should open doors before transfers")
+	_expect(not service_controller.advance_service_dwell(0.4), "service dwell should remain active before its timer expires")
+	_expect(service_controller.advance_service_dwell(1.0), "service dwell should complete through controller time")
+
+	var staging_controller = _new_controller(1, SimulationTypes.Direction.IDLE)
+	staging_controller.configure_strategy(1, 10, 5, 0)
+	_expect(staging_controller.next_stop() == 5, "idle controller should choose its staging floor when no service demand exists")
+	_expect(not staging_controller.target_is_service_stop, "staging should not be classified as a service stop")
+	staging_controller.begin_moving_to(5)
+	staging_controller.advance_travel(3.0)
+	_expect(not staging_controller.arrived_service_stop, "staging arrival should not begin a service stop")
+	_expect(staging_controller.door_state == SimulationTypes.DoorState.CLOSED, "staging arrival should not open doors")
+	staging_controller.complete_stop()
+
+
 func _test_dispatcher_prefers_lower_cost_compatible_controller() -> void:
 	var dispatcher = _new_dispatcher()
 	var near_up := _new_controller(4, SimulationTypes.Direction.UP, 1)
@@ -304,7 +325,7 @@ func _test_stop_exits_before_boarding_when_car_is_full() -> void:
 	var request = manager.register_waiting_passenger(waiting_passenger, 0.0)
 	controller.assign_hall_request(request)
 
-	controller.arrive_at(5)
+	_arrive_for_service(controller, 5)
 	var events: Dictionary = controller.process_stop(manager, 10.0)
 	_expect(events["exited"].size() == 1, "a rider should exit before pickup processing")
 	_expect(events["boarded"].size() == 1, "dropoff capacity should permit a waiting passenger to board")
@@ -322,7 +343,7 @@ func _test_stop_reoffers_excess_capacity_demand() -> void:
 	manager.register_waiting_passenger(second, 0.0)
 	controller.assign_hall_request(request)
 
-	controller.arrive_at(5)
+	_arrive_for_service(controller, 5)
 	controller.process_stop(manager, 10.0)
 	_expect(first.state == SimulationTypes.PassengerState.RIDING, "the first compatible passenger should board")
 	_expect(second.state == SimulationTypes.PassengerState.WAITING, "excess passenger should become unassigned waiting demand")
@@ -347,7 +368,7 @@ func _test_stop_deduplicates_boarded_destinations() -> void:
 	manager.register_waiting_passenger(second, 0.0)
 	controller.assign_hall_request(request)
 
-	controller.arrive_at(5)
+	_arrive_for_service(controller, 5)
 	controller.process_stop(manager, 10.0)
 	_expect(controller.passengers.size() == 2, "both compatible passengers should board when capacity permits")
 	_expect(controller.destination_requests.size() == 1 and controller.destination_requests.has(8), "matching rider destinations should remain one physical stop")
@@ -360,7 +381,7 @@ func _test_stop_leaves_incompatible_direction_waiting() -> void:
 	var request = manager.register_waiting_passenger(down_passenger, 0.0)
 	controller.assign_hall_request(request)
 
-	controller.arrive_at(5)
+	_arrive_for_service(controller, 5)
 	controller.process_stop(manager, 10.0)
 	_expect(controller.passengers.is_empty(), "UP service must not board a DOWN passenger")
 	_expect(down_passenger.state == SimulationTypes.PassengerState.ASSIGNED, "incompatible passenger should remain assigned for a later reverse")
@@ -374,7 +395,7 @@ func _test_arrival_signal_is_emitted_once_per_stop_lifecycle() -> void:
 	controller.elevator_arrived.connect(_record_elevator_arrival)
 
 	controller.begin_moving_to(5)
-	controller.arrive_at(5)
+	_arrive_for_service(controller, 5)
 	controller.process_stop(manager, 10.0)
 	_expect(_arrival_signal_count == 1, "arrive_at followed by process_stop must emit one arrival event")
 
@@ -411,6 +432,13 @@ func _passenger(origin: int, destination: int, request_time: float) -> RushPasse
 	var passenger := RushPassenger.new()
 	passenger.configure(origin, destination, request_time)
 	return passenger
+
+
+func _arrive_for_service(controller, floor: int) -> void:
+	controller.target_is_service_stop = true
+	controller.arrive_at(floor)
+	controller.begin_service_dwell()
+	controller.advance_service_dwell(10.0)
 
 
 func _record_request_completion(_request) -> void:

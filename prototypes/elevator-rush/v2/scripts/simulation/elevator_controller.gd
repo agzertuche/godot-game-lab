@@ -14,6 +14,7 @@ signal elevator_direction_changed(previous_direction: int, new_direction: int)
 
 const CAPACITY := 4
 const TRAVEL_FLOORS_PER_SECOND := 2.05
+const SERVICE_DWELL_SECONDS := 0.85
 const Behavior := {
 	"NORMAL": 0,
 	"UP_BIAS": 1,
@@ -33,6 +34,9 @@ var destination_requests: Dictionary = {}
 var door_state := SimulationTypes.DoorState.CLOSED
 var target_floor := 0
 var travel_floor := 1.0
+var target_is_service_stop := false
+var arrived_service_stop := false
+var service_dwell_remaining := 0.0
 var allowed_min := 1
 var allowed_max := 10
 var staging_floor := 1
@@ -62,6 +66,9 @@ func reset(starting_floor: int, stage_floor: int) -> void:
 	door_state = SimulationTypes.DoorState.CLOSED
 	target_floor = 0
 	travel_floor = float(starting_floor)
+	target_is_service_stop = false
+	arrived_service_stop = false
+	service_dwell_remaining = 0.0
 
 
 func configure_strategy(min_floor: int, max_floor: int, stage_floor: int, behavior: int) -> void:
@@ -120,31 +127,41 @@ func is_request_compatible(request: HallRequest) -> bool:
 func next_stop() -> int:
 	if service_direction == SimulationTypes.Direction.IDLE:
 		target_floor = _nearest_assigned_pickup_floor()
+		target_is_service_stop = target_floor != 0
 		if target_floor == 0 and staging_floor != current_floor:
 			target_floor = staging_floor
+			target_is_service_stop = false
 		return target_floor
 
 	var current_request := _request_at_floor_for_direction(service_direction)
 	if current_request != null:
 		target_floor = current_floor
+		target_is_service_stop = true
 		return target_floor
 
 	var next := _nearest_stop_ahead(service_direction)
 	if next != 0:
 		target_floor = next
+		target_is_service_stop = true
 		return target_floor
 
 	recalculate_service_direction()
 	if service_direction == SimulationTypes.Direction.IDLE:
 		target_floor = _nearest_assigned_pickup_floor()
+		target_is_service_stop = target_floor != 0
+		if target_floor == 0 and staging_floor != current_floor:
+			target_floor = staging_floor
+			target_is_service_stop = false
 		return target_floor
 
 	current_request = _request_at_floor_for_direction(service_direction)
 	if current_request != null:
 		target_floor = current_floor
+		target_is_service_stop = true
 		return target_floor
 
 	target_floor = _nearest_stop_ahead(service_direction)
+	target_is_service_stop = target_floor != 0
 	return target_floor
 
 
@@ -195,7 +212,9 @@ func recalculate_service_direction() -> void:
 func arrive_at(floor: int) -> void:
 	current_floor = floor
 	travel_floor = float(floor)
+	arrived_service_stop = target_is_service_stop
 	target_floor = 0
+	target_is_service_stop = false
 	movement_state = SimulationTypes.MovementState.STOPPED
 	elevator_arrived.emit(current_floor)
 
@@ -203,11 +222,27 @@ func arrive_at(floor: int) -> void:
 func complete_stop() -> void:
 	movement_state = SimulationTypes.MovementState.IDLE
 	door_state = SimulationTypes.DoorState.CLOSED
+	arrived_service_stop = false
+	service_dwell_remaining = 0.0
 
 
 func open_doors() -> void:
 	door_state = SimulationTypes.DoorState.OPEN
 	doors_opened.emit(current_floor)
+
+
+func begin_service_dwell() -> void:
+	assert(movement_state == SimulationTypes.MovementState.STOPPED, "service dwell requires a logical arrival")
+	assert(arrived_service_stop, "service dwell requires a service target")
+	open_doors()
+	service_dwell_remaining = SERVICE_DWELL_SECONDS
+
+
+func advance_service_dwell(delta: float) -> bool:
+	if movement_state != SimulationTypes.MovementState.STOPPED or not arrived_service_stop or door_state != SimulationTypes.DoorState.OPEN:
+		return false
+	service_dwell_remaining = maxf(0.0, service_dwell_remaining - delta)
+	return is_zero_approx(service_dwell_remaining)
 
 
 ## Completes one simulation stop without relying on animation callbacks.
@@ -218,13 +253,15 @@ func open_doors() -> void:
 ## the remaining demand rather than waiting on a full elevator indefinitely.
 func process_stop(request_manager: HallRequestManager, now: float) -> Dictionary:
 	assert(movement_state == SimulationTypes.MovementState.STOPPED, "process_stop requires arrive_at before transfers")
-	open_doors()
+	assert(arrived_service_stop, "process_stop requires a service target")
+	assert(is_zero_approx(service_dwell_remaining), "process_stop requires the service dwell to finish")
 
 	var exited: Array[RushPassenger] = _exit_passengers_at_current_floor()
 	var boarded: Array[RushPassenger] = _board_compatible_passengers(request_manager)
 
 	door_state = SimulationTypes.DoorState.CLOSED
 	movement_state = SimulationTypes.MovementState.IDLE
+	arrived_service_stop = false
 	recalculate_service_direction()
 	var following_stop := next_stop()
 	return {
