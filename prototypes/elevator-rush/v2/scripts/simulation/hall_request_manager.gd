@@ -15,14 +15,14 @@ func _init(floor_count: int) -> void:
 	_floor_count = floor_count
 
 
-func register_waiting_passenger(passenger: RushPassenger) -> HallRequest:
+func register_waiting_passenger(passenger: RushPassenger, now: float) -> HallRequest:
 	if not passenger.is_waiting() or not _is_valid_hall_call(passenger.origin_floor, passenger.requested_direction):
 		return null
 
 	var key := _request_key(passenger.origin_floor, passenger.requested_direction)
 	var request: HallRequest = _requests_by_key.get(key)
 	if request == null:
-		request = HallRequest.new(passenger.origin_floor, passenger.requested_direction, passenger.request_time)
+		request = HallRequest.new(passenger.origin_floor, passenger.requested_direction, now)
 		_requests_by_key[key] = request
 		hall_request_created.emit(request)
 
@@ -30,7 +30,7 @@ func register_waiting_passenger(passenger: RushPassenger) -> HallRequest:
 	return request
 
 
-func remove_passenger(passenger: RushPassenger) -> void:
+func remove_passenger_from_request(passenger: RushPassenger) -> void:
 	var key := _request_key(passenger.origin_floor, passenger.requested_direction)
 	var request: HallRequest = _requests_by_key.get(key)
 	if request == null:
@@ -42,6 +42,10 @@ func remove_passenger(passenger: RushPassenger) -> void:
 
 	_requests_by_key.erase(key)
 	hall_request_completed.emit(request)
+
+
+func remove_passenger(passenger: RushPassenger) -> void:
+	remove_passenger_from_request(passenger)
 
 
 func get_active_requests() -> Array[HallRequest]:
