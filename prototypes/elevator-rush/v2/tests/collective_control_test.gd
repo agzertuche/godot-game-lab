@@ -30,6 +30,10 @@ func _init() -> void:
 	_test_dispatcher_breaks_ties_by_elevator_id()
 	_test_dispatcher_sorts_requests_before_costs_can_change()
 	_test_dispatcher_skips_full_controller()
+	_test_stop_exits_before_boarding_when_car_is_full()
+	_test_stop_reoffers_excess_capacity_demand()
+	_test_stop_deduplicates_boarded_destinations()
+	_test_stop_leaves_incompatible_direction_waiting()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -268,6 +272,78 @@ func _test_dispatcher_skips_full_controller() -> void:
 
 	dispatcher.assign_unassigned_requests(controllers, requests, 1.0)
 	_expect(request.assigned_elevator_id == 2, "a full controller must be skipped even when it has the lower travel cost")
+
+
+func _test_stop_exits_before_boarding_when_car_is_full() -> void:
+	var manager := HallRequestManager.new(10)
+	var controller := _new_controller(5, SimulationTypes.Direction.UP, 1)
+	controller.capacity = 1
+	var exiting_passenger := _passenger(2, 5, 0.0)
+	exiting_passenger.state = SimulationTypes.PassengerState.RIDING
+	exiting_passenger.assigned_elevator_id = 1
+	controller.passengers.append(exiting_passenger)
+	controller.add_destination_request(5)
+	var waiting_passenger := _passenger(5, 8, 0.0)
+	var request = manager.register_waiting_passenger(waiting_passenger, 0.0)
+	controller.assign_hall_request(request)
+
+	var events: Dictionary = controller.process_stop(manager, 10.0)
+	_expect(events["exited"].size() == 1, "a rider should exit before pickup processing")
+	_expect(events["boarded"].size() == 1, "dropoff capacity should permit a waiting passenger to board")
+	_expect(exiting_passenger.state == SimulationTypes.PassengerState.COMPLETED, "exiting rider should complete at the stop")
+	_expect(waiting_passenger.state == SimulationTypes.PassengerState.RIDING, "waiting passenger should ride after capacity is freed")
+
+
+func _test_stop_reoffers_excess_capacity_demand() -> void:
+	var manager := HallRequestManager.new(10)
+	var controller := _new_controller(5, SimulationTypes.Direction.UP, 1)
+	controller.capacity = 1
+	var first := _passenger(5, 8, 0.0)
+	var second := _passenger(5, 9, 0.0)
+	var request = manager.register_waiting_passenger(first, 0.0)
+	manager.register_waiting_passenger(second, 0.0)
+	controller.assign_hall_request(request)
+
+	controller.process_stop(manager, 10.0)
+	_expect(first.state == SimulationTypes.PassengerState.RIDING, "the first compatible passenger should board")
+	_expect(second.state == SimulationTypes.PassengerState.WAITING, "excess passenger should become unassigned waiting demand")
+	_expect(second.assigned_elevator_id == 0, "excess passenger should not remain assigned to the full car")
+	_expect(request.is_active(), "partial boarding must keep the shared hall request active")
+	_expect(request.assigned_elevator_id == 0, "partial boarding should reoffer the remaining hall request")
+	_expect(request not in controller.assigned_hall_requests, "full car should release its incomplete pickup request")
+	_expect(manager.get_unassigned_requests().has(request), "dispatcher should see remaining demand on its next pass")
+	var dispatcher := _new_dispatcher()
+	var available_controller := _new_controller(1, SimulationTypes.Direction.IDLE, 2)
+	var controllers: Array[ElevatorController] = [controller, available_controller]
+	dispatcher.assign_unassigned_requests(controllers, manager.get_unassigned_requests(), 11.0)
+	_expect(request.assigned_elevator_id == 2, "reoffered partial demand should be assignable to another available car")
+
+
+func _test_stop_deduplicates_boarded_destinations() -> void:
+	var manager := HallRequestManager.new(10)
+	var controller := _new_controller(5, SimulationTypes.Direction.UP, 1)
+	var first := _passenger(5, 8, 0.0)
+	var second := _passenger(5, 8, 0.0)
+	var request = manager.register_waiting_passenger(first, 0.0)
+	manager.register_waiting_passenger(second, 0.0)
+	controller.assign_hall_request(request)
+
+	controller.process_stop(manager, 10.0)
+	_expect(controller.passengers.size() == 2, "both compatible passengers should board when capacity permits")
+	_expect(controller.destination_requests.size() == 1 and controller.destination_requests.has(8), "matching rider destinations should remain one physical stop")
+
+
+func _test_stop_leaves_incompatible_direction_waiting() -> void:
+	var manager := HallRequestManager.new(10)
+	var controller := _new_controller(5, SimulationTypes.Direction.UP, 1)
+	var down_passenger := _passenger(5, 2, 0.0)
+	var request = manager.register_waiting_passenger(down_passenger, 0.0)
+	controller.assign_hall_request(request)
+
+	controller.process_stop(manager, 10.0)
+	_expect(controller.passengers.is_empty(), "UP service must not board a DOWN passenger")
+	_expect(down_passenger.state == SimulationTypes.PassengerState.ASSIGNED, "incompatible passenger should remain assigned for a later reverse")
+	_expect(request.is_active(), "incompatible hall request must remain active")
 
 
 func _new_controller(floor: int, service_direction: int, identifier: int = 0):

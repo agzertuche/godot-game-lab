@@ -8,6 +8,8 @@ const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 
 signal elevator_arrived(floor: int)
 signal doors_opened(floor: int)
+signal passenger_boarded(passenger: RushPassenger, floor: int)
+signal passenger_exited(passenger: RushPassenger, floor: int)
 signal elevator_direction_changed(previous_direction: int, new_direction: int)
 
 const CAPACITY := 4
@@ -141,6 +143,104 @@ func complete_stop() -> void:
 func open_doors() -> void:
 	door_state = SimulationTypes.DoorState.OPEN
 	doors_opened.emit(current_floor)
+
+
+## Completes one simulation stop without relying on animation callbacks.
+##
+## The lifecycle intentionally mirrors collective elevator operation: riders
+## leave first, then compatible assigned landing passengers enter. A partially
+## served hall request is released to the dispatcher so another car can serve
+## the remaining demand rather than waiting on a full elevator indefinitely.
+func process_stop(request_manager: HallRequestManager, now: float) -> Dictionary:
+	movement_state = SimulationTypes.MovementState.STOPPED
+	target_floor = 0
+	elevator_arrived.emit(current_floor)
+	open_doors()
+
+	var exited: Array[RushPassenger] = _exit_passengers_at_current_floor()
+	var boarded: Array[RushPassenger] = _board_compatible_passengers(request_manager)
+
+	door_state = SimulationTypes.DoorState.CLOSED
+	movement_state = SimulationTypes.MovementState.IDLE
+	recalculate_service_direction()
+	var following_stop := next_stop()
+	return {
+		"floor": current_floor,
+		"exited": exited,
+		"boarded": boarded,
+		"next_stop": following_stop,
+	}
+
+
+func _exit_passengers_at_current_floor() -> Array[RushPassenger]:
+	var exited: Array[RushPassenger] = []
+	for passenger: RushPassenger in passengers.duplicate():
+		if passenger.destination_floor != current_floor:
+			continue
+
+		passenger.state = SimulationTypes.PassengerState.EXITING
+		passengers.erase(passenger)
+		passenger.assigned_elevator_id = 0
+		passenger.state = SimulationTypes.PassengerState.COMPLETED
+		exited.append(passenger)
+		passenger_exited.emit(passenger, current_floor)
+
+	if not _has_passenger_destination(current_floor):
+		remove_destination_request(current_floor)
+	return exited
+
+
+func _board_compatible_passengers(request_manager: HallRequestManager) -> Array[RushPassenger]:
+	var boarded: Array[RushPassenger] = []
+	_adopt_pickup_direction_if_idle()
+	var boarding_direction := service_direction
+	if boarding_direction == SimulationTypes.Direction.IDLE:
+		return boarded
+
+	for request: HallRequest in assigned_hall_requests.duplicate():
+		if request.floor != current_floor or request.direction != boarding_direction:
+			continue
+		if not request.is_active():
+			remove_hall_request(request)
+			continue
+
+		for passenger: RushPassenger in request.waiting_passengers.duplicate():
+			if not has_capacity():
+				break
+			if passenger.requested_direction != boarding_direction:
+				continue
+
+			passenger.state = SimulationTypes.PassengerState.BOARDING
+			request_manager.remove_passenger_from_request(passenger)
+			passenger.assigned_elevator_id = elevator_id
+			passenger.state = SimulationTypes.PassengerState.RIDING
+			passengers.append(passenger)
+			add_destination_request(passenger.destination_floor)
+			boarded.append(passenger)
+			passenger_boarded.emit(passenger, current_floor)
+
+		if not request.is_active():
+			remove_hall_request(request)
+		elif not has_capacity():
+			remove_hall_request(request)
+			request_manager.release_request_assignment(request)
+
+	return boarded
+
+
+func _adopt_pickup_direction_if_idle() -> void:
+	if service_direction != SimulationTypes.Direction.IDLE:
+		return
+	var request := _request_at_current_floor()
+	if request != null:
+		_set_service_direction(request.direction)
+
+
+func _has_passenger_destination(floor: int) -> bool:
+	for passenger: RushPassenger in passengers:
+		if passenger.destination_floor == floor:
+			return true
+	return false
 
 
 func _nearest_stop_ahead(direction: int) -> int:

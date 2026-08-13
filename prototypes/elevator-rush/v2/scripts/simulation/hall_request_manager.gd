@@ -64,6 +64,20 @@ func get_unassigned_requests() -> Array[HallRequest]:
 	return unassigned
 
 
+## Releases a partially served shared call so its remaining passengers can be
+## considered by the dispatcher again. Riders are removed before this is called,
+## therefore every passenger here is still waiting at the landing.
+func release_request_assignment(request: HallRequest) -> void:
+	if not request.is_active():
+		return
+
+	request.assigned_elevator_id = 0
+	for passenger: RushPassenger in request.waiting_passengers:
+		passenger.assigned_elevator_id = 0
+		if passenger.state == SimulationTypes.PassengerState.ASSIGNED:
+			passenger.state = SimulationTypes.PassengerState.WAITING
+
+
 func _is_valid_hall_call(floor: int, direction: int) -> bool:
 	if floor < 1 or floor > _floor_count:
 		return false
