@@ -1,0 +1,237 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/Elevator.tscn" id="2_elevator"]
+[ext_resource type="PackedScene" path="res://scenes/Passenger.tscn" id="3_passenger"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+elevator_scene = ExtResource("2_elevator")
+passenger_scene = ExtResource("3_passenger")
+
+[node name="Elevators" type="Node2D" parent="."]
+
+[node name="Passengers" type="Node2D" parent="."]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 14.0
+offset_right = 300.0
+offset_bottom = 42.0
+theme_override_font_sizes/font_size = 24
+text = "ELEVATOR RUSH"
+
+[node name="ScoreLabel" type="Label" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 48.0
+offset_right = 180.0
+offset_bottom = 70.0
+text = "Score: 0"
+
+[node name="DeliveredLabel" type="Label" parent="CanvasLayer"]
+offset_left = 190.0
+offset_top = 48.0
+offset_right = 330.0
+offset_bottom = 70.0
+text = "Delivered: 0"
+
+[node name="MissedLabel" type="Label" parent="CanvasLayer"]
+offset_left = 350.0
+offset_top = 48.0
+offset_right = 520.0
+offset_bottom = 70.0
+text = "Missed: 0"
+
+[node name="TimeLabel" type="Label" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 74.0
+offset_right = 180.0
+offset_bottom = 98.0
+text = "Time: 5:00"
+
+[node name="StatusLabel" type="Label" parent="CanvasLayer"]
+offset_left = 190.0
+offset_top = 74.0
+offset_right = 520.0
+offset_bottom = 98.0
+text = "Program routes to collect passengers."
+autowrap_mode = 2
+
+[node name="Floor6Label" type="Label" parent="CanvasLayer"]
+offset_left = 14.0
+offset_top = 145.0
+offset_right = 60.0
+offset_bottom = 168.0
+text = "F6"
+
+[node name="Floor5Label" type="Label" parent="CanvasLayer"]
+offset_left = 14.0
+offset_top = 255.0
+offset_right = 60.0
+offset_bottom = 278.0
+text = "F5"
+
+[node name="Floor4Label" type="Label" parent="CanvasLayer"]
+offset_left = 14.0
+offset_top = 365.0
+offset_right = 60.0
+offset_bottom = 388.0
+text = "F4"
+
+[node name="Floor3Label" type="Label" parent="CanvasLayer"]
+offset_left = 14.0
+offset_top = 475.0
+offset_right = 60.0
+offset_bottom = 498.0
+text = "F3"
+
+[node name="Floor2Label" type="Label" parent="CanvasLayer"]
+offset_left = 14.0
+offset_top = 585.0
+offset_right = 60.0
+offset_bottom = 608.0
+text = "F2"
+
+[node name="Floor1Label" type="Label" parent="CanvasLayer"]
+offset_left = 14.0
+offset_top = 695.0
+offset_right = 60.0
+offset_bottom = 718.0
+text = "F1"
+
+[node name="RushLabel" type="Label" parent="CanvasLayer"]
+visible = false
+offset_left = 110.0
+offset_top = 112.0
+offset_right = 470.0
+offset_bottom = 140.0
+theme_override_colors/font_color = Color(1, 0.72, 0.25, 1)
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+text = "RUSH HOUR!"
+
+[node name="RouteLabel" type="Label" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 736.0
+offset_right = 522.0
+offset_bottom = 756.0
+text = "Elevator A pickup floor: -"
+
+[node name="OnboardLabel" type="Label" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 758.0
+offset_right = 522.0
+offset_bottom = 778.0
+text = "Onboard: none"
+
+[node name="ElevatorAButton" type="Button" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 780.0
+offset_right = 258.0
+offset_bottom = 817.0
+text = "SELECT ELEVATOR A"
+
+[node name="ElevatorBButton" type="Button" parent="CanvasLayer"]
+offset_left = 282.0
+offset_top = 780.0
+offset_right = 522.0
+offset_bottom = 817.0
+text = "SELECT ELEVATOR B"
+
+[node name="Floor1Button" type="Button" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 828.0
+offset_right = 78.0
+offset_bottom = 864.0
+text = "1"
+
+[node name="Floor2Button" type="Button" parent="CanvasLayer"]
+offset_left = 86.0
+offset_top = 828.0
+offset_right = 146.0
+offset_bottom = 864.0
+text = "2"
+
+[node name="Floor3Button" type="Button" parent="CanvasLayer"]
+offset_left = 154.0
+offset_top = 828.0
+offset_right = 214.0
+offset_bottom = 864.0
+text = "3"
+
+[node name="Floor4Button" type="Button" parent="CanvasLayer"]
+offset_left = 18.0
+offset_top = 872.0
+offset_right = 78.0
+offset_bottom = 908.0
+text = "4"
+
+[node name="Floor5Button" type="Button" parent="CanvasLayer"]
+offset_left = 86.0
+offset_top = 872.0
+offset_right = 146.0
+offset_bottom = 908.0
+text = "5"
+
+[node name="Floor6Button" type="Button" parent="CanvasLayer"]
+offset_left = 154.0
+offset_top = 872.0
+offset_right = 214.0
+offset_bottom = 908.0
+text = "6"
+
+[node name="UndoButton" type="Button" parent="CanvasLayer"]
+offset_left = 230.0
+offset_top = 828.0
+offset_right = 370.0
+offset_bottom = 864.0
+text = "UNDO"
+
+[node name="ClearButton" type="Button" parent="CanvasLayer"]
+offset_left = 382.0
+offset_top = 828.0
+offset_right = 522.0
+offset_bottom = 864.0
+text = "CLEAR"
+
+[node name="StartButton" type="Button" parent="CanvasLayer"]
+offset_left = 230.0
+offset_top = 872.0
+offset_right = 522.0
+offset_bottom = 908.0
+text = "START ROUTE"
+
+[node name="ResultsPanel" type="ColorRect" parent="CanvasLayer"]
+visible = false
+offset_left = 42.0
+offset_top = 270.0
+offset_right = 498.0
+offset_bottom = 650.0
+color = Color(0.08, 0.1, 0.16, 0.96)
+
+[node name="ResultsTitle" type="Label" parent="CanvasLayer/ResultsPanel"]
+offset_top = 44.0
+offset_right = 456.0
+offset_bottom = 82.0
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+text = "DAY COMPLETE"
+
+[node name="ResultsLabel" type="Label" parent="CanvasLayer/ResultsPanel"]
+offset_left = 42.0
+offset_top = 112.0
+offset_right = 414.0
+offset_bottom = 220.0
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+text = ""
+
+[node name="PlayAgainButton" type="Button" parent="CanvasLayer/ResultsPanel"]
+offset_left = 78.0
+offset_top = 276.0
+offset_right = 378.0
+offset_bottom = 326.0
+theme_override_font_sizes/font_size = 20
+text = "PLAY AGAIN"
