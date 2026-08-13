@@ -42,6 +42,7 @@ func _init() -> void:
 	_test_stop_releases_late_out_of_zone_shared_waiter()
 	_test_shared_call_splits_across_zoned_elevators()
 	_test_arrival_signal_is_emitted_once_per_stop_lifecycle()
+	_test_exact_five_passenger_acceptance_scenario()
 	_test_deterministic_two_car_collective_scenario()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
@@ -484,6 +485,71 @@ func _test_arrival_signal_is_emitted_once_per_stop_lifecycle() -> void:
 	_arrive_for_service(controller, 5)
 	controller.process_stop(manager, 10.0)
 	_expect(_arrival_signal_count == 1, "arrive_at followed by process_stop must emit one arrival event")
+
+
+## Exact acceptance scenario from the request/dispatch foundation brief.
+## The cars retain their default full-building zones and capacity; this test
+## makes no use of presentation nodes, staging changes, or extra passengers.
+func _test_exact_five_passenger_acceptance_scenario() -> void:
+	var manager := HallRequestManager.new(10)
+	var dispatcher := _new_dispatcher()
+	var elevator_a := _new_controller(1, SimulationTypes.Direction.IDLE, 1)
+	var elevator_b := _new_controller(8, SimulationTypes.Direction.IDLE, 2)
+	var controllers: Array[ElevatorController] = [elevator_a, elevator_b]
+	var passengers: Array[RushPassenger] = [
+		_passenger(2, 7, 0.0), # P1
+		_passenger(4, 9, 0.0), # P2
+		_passenger(6, 1, 0.0), # P3
+		_passenger(8, 3, 0.0), # P4
+		_passenger(3, 10, 0.0), # P5
+	]
+	for passenger: RushPassenger in passengers:
+		manager.register_waiting_passenger(passenger, 0.0)
+
+	var now := 0.0
+	var maximum_load := 0
+	var boarded_against_service_direction := false
+	var saw_up_service := false
+	var saw_down_service := false
+	for step: int in 1200:
+		dispatcher.assign_unassigned_requests(controllers, manager.get_unassigned_requests(), now)
+		for controller: ElevatorController in controllers:
+			if controller.service_direction == SimulationTypes.Direction.UP:
+				saw_up_service = true
+			elif controller.service_direction == SimulationTypes.Direction.DOWN:
+				saw_down_service = true
+
+			if controller.movement_state == SimulationTypes.MovementState.MOVING:
+				controller.advance_travel(0.1)
+			elif controller.movement_state == SimulationTypes.MovementState.STOPPED:
+				if controller.arrived_service_stop and controller.door_state == SimulationTypes.DoorState.CLOSED:
+					controller.begin_service_dwell()
+				elif controller.arrived_service_stop and controller.advance_service_dwell(0.1):
+					var events: Dictionary = controller.process_stop(manager, now)
+					for boarded: RushPassenger in events["boarded"]:
+						if boarded.requested_direction != controller.service_direction:
+							boarded_against_service_direction = true
+				elif not controller.arrived_service_stop:
+					controller.complete_stop()
+			else:
+				var next := controller.next_stop()
+				if next == controller.current_floor and controller.target_is_service_stop:
+					controller.arrive_at(next)
+				elif next != 0:
+					controller.begin_moving_to(next)
+
+			maximum_load = maxi(maximum_load, controller.passengers.size())
+		now += 0.1
+		if _all_completed(passengers):
+			break
+
+	_expect(_all_completed(passengers), "the exact five-passenger scenario should complete within 120 simulated seconds")
+	_expect(maximum_load <= ElevatorController.CAPACITY, "the exact scenario must never exceed default capacity")
+	_expect(not boarded_against_service_direction, "the exact scenario must board passengers only in the car's active service direction")
+	_expect(saw_up_service and saw_down_service, "the exact mixed-direction scenario should exercise both collective service directions")
+	_expect(manager.get_active_requests().is_empty(), "the exact scenario should leave no active hall requests")
+	_expect(elevator_a.passengers.is_empty() and elevator_b.passengers.is_empty(), "the exact scenario should leave no riders in either car")
+	_expect(elevator_a.destination_requests.is_empty() and elevator_b.destination_requests.is_empty(), "the exact scenario should clear all destination requests after dropoff")
 
 
 ## End-to-end, fixed-timestep specification for the request-driven simulation.

@@ -59,17 +59,16 @@ The simulation objects intentionally remain usable without `Main` or any visual 
 
 ## Deterministic Simulation Check
 
-`tests/collective_control_test.gd` is a headless `SceneTree` test runner. In addition to focused request, routing, capacity, and dispatcher checks, it runs a fixed-timestep two-car scenario:
+`tests/collective_control_test.gd` is a headless `SceneTree` test runner. It first runs the exact five-passenger acceptance scenario below with default full-building zones and capacity, then runs a separate expanded scenario for shared-call consolidation and a forced return:
 
 ```text
 Elevator A: Floor 1     Elevator B: Floor 8
 P1 2 -> 7              P2 4 -> 9
 P3 6 -> 1              P4 8 -> 3
-P5 3 -> 10             extra rider 2 -> 8 (shared Floor 2 UP call)
-extra rider 5 -> 2 (forces a collective return after upward work)
+P5 3 -> 10
 ```
 
-It verifies consolidation, deterministic assignment, direction-compatible boarding, capacity, destination delivery, reversal, and removal of completed demand without creating `Main` or presentation nodes. Run it when Godot is available:
+Together, the scenarios verify consolidation, deterministic assignment, direction-compatible boarding, capacity, destination delivery, reversal, and removal of completed demand without creating `Main` or presentation nodes. Run them when Godot is available:
 
 ```bash
 godot --headless --path prototypes/elevator-rush/v2 -s res://tests/collective_control_test.gd
