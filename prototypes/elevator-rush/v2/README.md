@@ -15,7 +15,7 @@ V2 is a separate Godot 4 prototype. It tests a tower-defense-like loop: configur
 - Four 60-second waves: three fixed-seed levels—Morning Rush (50 passengers), Midday Exchange (54), and Evening Exit (58)—followed by Adaptive Chaos (60 passengers).
 - Adaptive Chaos generates a mixed passenger schedule when it is unlocked. Its schedule remains fixed for level restarts, failed-run retries, and **REPLAY SAME CHALLENGE**, so strategy comparisons stay fair. **NEW CHALLENGE** generates a new Adaptive Chaos schedule.
 - Each elevator gets a contiguous allowed floor range, one staging floor, and a behavior: `Normal`, `Up Bias`, `Down Bias`, `Up Only`, or `Down Only`.
-- Dispatch is deliberately simple: an elevator claims up to its capacity from the oldest valid waiting floor, then delivers riders in ascending floors while going up and descending floors while going down. Biases favor their direction but rescue opposite-direction passengers after 20 seconds; `Only` modes never serve the opposite direction. With room available, elevators collect compatible passengers en route and at delivery stops. Other elevators only target a floor when unclaimed passengers remain.
+- Dispatch is deliberately simple: a shared dispatcher assigns grouped hall requests to eligible elevators. Each elevator then serves compatible requests in its current direction, while rider destinations become deduplicated destination requests. This request-driven foundation keeps hall demand, routing, and presentation separate.
 - During a wave, the player may change coverage, staging, and behavior. Each change is pending until its elevator completes committed work and becomes idle, then applies after an 8-second per-elevator cooldown.
 - No manual movement or passenger commands.
 
@@ -31,6 +31,14 @@ V2 is a separate Godot 4 prototype. It tests a tower-defense-like loop: configur
 ## Run Grade
 
 Results also show a weighted `0–10` grade to compare the same wave across strategies: delivery completion (4 points), average wait (2), longest wait (1.25), utilization (1), passenger-load balance (0.75), and stop efficiency (1). Completion and waiting time are intentionally the priorities.
+
+## Request-Driven Simulation Glossary
+
+- **Hall Request**: shared demand for one floor and travel direction. Multiple passengers waiting at Floor 5 for `UP` use one request; Floor 5 `DOWN` is a separate request.
+- **Destination Request**: an in-car stop created when a passenger boards. Several passengers requesting the same floor create one physical stop.
+- **Service Direction**: the elevator's current collection direction: `UP`, `DOWN`, or `IDLE`. It remains meaningful while the car is stopped.
+- **Movement State**: whether the car is `IDLE`, `MOVING`, or `STOPPED`; it is separate from service direction.
+- **Door State**: the independent door lifecycle: `CLOSED`, `OPENING`, `OPEN`, or `CLOSING`.
 
 ## Manual Test Checklist
 

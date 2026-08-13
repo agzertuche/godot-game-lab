@@ -17,8 +17,28 @@ Level 4, `ADAPTIVE CHAOS`: an intentionally unpredictable, mixed-traffic wave. I
 _Avoid_: Fully random retry, daily challenge
 
 **Dispatch**:
-The autonomous decision process that assigns passengers and selects an elevator's next stop.
+The autonomous decision process that assigns hall requests and selects an elevator's next stop.
 _Avoid_: Player control, driving
+
+**Hall Request**:
+Shared demand created by all waiting passengers at the same origin floor who want the same direction. Opposite directions remain separate requests.
+_Avoid_: Individual elevator command, passenger route
+
+**Destination Request**:
+An in-car stop created when a passenger boards. Multiple riders for the same destination share one physical stop.
+_Avoid_: Hall request, manual floor selection
+
+**Service Direction**:
+The current collection direction of an elevator: `UP`, `DOWN`, or `IDLE`. It is independent from whether the car is currently moving.
+_Avoid_: Animation state, velocity
+
+**Movement State**:
+Whether an elevator is `IDLE`, `MOVING`, or `STOPPED` in the simulation.
+_Avoid_: Service direction
+
+**Door State**:
+The simulation lifecycle of an elevator's doors: `CLOSED`, `OPENING`, `OPEN`, or `CLOSING`.
+_Avoid_: Visual-only animation state
 
 **Behavior Rule**:
 One pre-wave policy that biases an elevator's automatic dispatch inside its allowed coverage.
