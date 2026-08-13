@@ -25,6 +25,10 @@ func waiting_time(now: float) -> float:
 func add_passenger(passenger: RushPassenger) -> void:
 	if passenger not in waiting_passengers:
 		waiting_passengers.append(passenger)
+	if assigned_elevator_id != 0:
+		passenger.assigned_elevator_id = assigned_elevator_id
+		if passenger.state == SimulationTypes.PassengerState.WAITING:
+			passenger.state = SimulationTypes.PassengerState.ASSIGNED
 
 
 func remove_passenger(passenger: RushPassenger) -> void:

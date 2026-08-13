@@ -5,6 +5,7 @@ const RushPassenger := preload("res://scripts/passenger.gd")
 const HallRequestManager := preload("res://scripts/simulation/hall_request_manager.gd")
 const HALL_REQUEST_PATH := "res://scripts/simulation/hall_request.gd"
 const ELEVATOR_CONTROLLER_PATH := "res://scripts/simulation/elevator_controller.gd"
+const ELEVATOR_DISPATCHER_PATH := "res://scripts/simulation/elevator_dispatcher.gd"
 
 var _failures: Array[String] = []
 var _completed_request_count := 0
@@ -22,6 +23,11 @@ func _init() -> void:
 	_test_terminal_turnaround_adopts_opposite_direction_at_current_floor()
 	_test_destination_requests_are_deduplicated()
 	_test_controller_owns_movement_state_transitions()
+	_test_dispatcher_prefers_lower_cost_compatible_controller()
+	_test_dispatcher_prioritizes_aged_request()
+	_test_dispatcher_assigns_all_shared_waiters()
+	_test_late_shared_waiter_inherits_existing_assignment()
+	_test_dispatcher_breaks_ties_by_elevator_id()
 	if _failures.is_empty():
 		print("collective_control_test: PASS")
 		quit(0)
@@ -166,20 +172,94 @@ func _test_controller_owns_movement_state_transitions() -> void:
 	_expect(controller.movement_state == SimulationTypes.MovementState.IDLE, "controller should return to IDLE after stop processing")
 
 
-func _new_controller(floor: int, service_direction: int):
+func _test_dispatcher_prefers_lower_cost_compatible_controller() -> void:
+	var dispatcher = _new_dispatcher()
+	var near_up := _new_controller(4, SimulationTypes.Direction.UP, 1)
+	var far_down := _new_controller(9, SimulationTypes.Direction.DOWN, 2)
+	var request = _request(5, SimulationTypes.Direction.UP)
+	var controllers: Array[ElevatorController] = [far_down, near_up]
+	var requests: Array[HallRequest] = [request]
+
+	_expect(dispatcher.calculate_assignment_cost(near_up, request, 10.0) < dispatcher.calculate_assignment_cost(far_down, request, 10.0), "compatible controller with lower pickup ETA should score lower")
+	dispatcher.assign_unassigned_requests(controllers, requests, 10.0)
+	_expect(request.assigned_elevator_id == 1, "dispatcher should assign the lower-cost compatible controller")
+
+
+func _test_dispatcher_prioritizes_aged_request() -> void:
+	var dispatcher = _new_dispatcher()
+	var controller := _new_controller(1, SimulationTypes.Direction.IDLE, 1)
+	var new_request = _request(5, SimulationTypes.Direction.UP, 18.0)
+	var aged_request = _request(5, SimulationTypes.Direction.UP, 0.0)
+
+	_expect(dispatcher.calculate_assignment_cost(controller, aged_request, 20.0) < dispatcher.calculate_assignment_cost(controller, new_request, 20.0), "an otherwise equal aged request should score lower")
+
+
+func _test_dispatcher_assigns_all_shared_waiters() -> void:
+	var dispatcher = _new_dispatcher()
+	var manager := HallRequestManager.new(10)
+	var first := _passenger(3, 7, 0.0)
+	var second := _passenger(3, 9, 1.0)
+	var request = manager.register_waiting_passenger(first, 0.0)
+	manager.register_waiting_passenger(second, 1.0)
+	var controller := _new_controller(1, SimulationTypes.Direction.IDLE, 3)
+	var controllers: Array[ElevatorController] = [controller]
+	var requests: Array[HallRequest] = [request]
+
+	dispatcher.assign_unassigned_requests(controllers, requests, 2.0)
+	_expect(first.assigned_elevator_id == 3 and second.assigned_elevator_id == 3, "every passenger in an assigned shared request should inherit its elevator")
+	_expect(first.state == SimulationTypes.PassengerState.ASSIGNED and second.state == SimulationTypes.PassengerState.ASSIGNED, "shared waiters should transition from WAITING to ASSIGNED")
+
+
+func _test_late_shared_waiter_inherits_existing_assignment() -> void:
+	var dispatcher = _new_dispatcher()
+	var manager := HallRequestManager.new(10)
+	var first := _passenger(3, 7, 0.0)
+	var request = manager.register_waiting_passenger(first, 0.0)
+	var controller := _new_controller(1, SimulationTypes.Direction.IDLE, 3)
+	var controllers: Array[ElevatorController] = [controller]
+	var requests: Array[HallRequest] = [request]
+
+	dispatcher.assign_unassigned_requests(controllers, requests, 1.0)
+	var late_passenger := _passenger(3, 8, 2.0)
+	manager.register_waiting_passenger(late_passenger, 2.0)
+	_expect(late_passenger.assigned_elevator_id == 3, "a later passenger on an assigned request should inherit its elevator")
+	_expect(late_passenger.state == SimulationTypes.PassengerState.ASSIGNED, "a later passenger on an assigned request should inherit ASSIGNED state")
+
+
+func _test_dispatcher_breaks_ties_by_elevator_id() -> void:
+	var dispatcher = _new_dispatcher()
+	var higher_id := _new_controller(4, SimulationTypes.Direction.IDLE, 2)
+	var lower_id := _new_controller(4, SimulationTypes.Direction.IDLE, 1)
+	var request = _request(5, SimulationTypes.Direction.UP)
+	var controllers: Array[ElevatorController] = [higher_id, lower_id]
+	var requests: Array[HallRequest] = [request]
+
+	dispatcher.assign_unassigned_requests(controllers, requests, 5.0)
+	_expect(request.assigned_elevator_id == 1, "equal dispatcher costs should choose the lower elevator id deterministically")
+
+
+func _new_controller(floor: int, service_direction: int, identifier: int = 0):
 	var controller_script = load(ELEVATOR_CONTROLLER_PATH)
 	_expect(controller_script != null, "elevator controller script should exist")
 	if controller_script == null:
 		return _MissingController.new()
-	var controller = controller_script.new()
+	var controller = controller_script.new(identifier, floor)
 	controller.current_floor = floor
 	controller.service_direction = service_direction
 	return controller
 
 
-func _request(floor: int, direction: int):
+func _new_dispatcher():
+	var dispatcher_script = load(ELEVATOR_DISPATCHER_PATH)
+	_expect(dispatcher_script != null, "elevator dispatcher script should exist")
+	if dispatcher_script == null:
+		return _MissingDispatcher.new()
+	return dispatcher_script.new()
+
+
+func _request(floor: int, direction: int, created_at: float = 0.0):
 	var request_script = load(HALL_REQUEST_PATH)
-	var request = request_script.new(floor, direction, 0.0)
+	var request = request_script.new(floor, direction, created_at)
 	var passenger := RushPassenger.new()
 	passenger.configure(floor, floor + direction, 0.0)
 	request.add_passenger(passenger)
@@ -215,4 +295,12 @@ class _MissingController:
 		return 0
 
 	func recalculate_service_direction() -> void:
+		pass
+
+
+class _MissingDispatcher:
+	func calculate_assignment_cost(_controller, _request, _now: float) -> float:
+		return 0.0
+
+	func assign_unassigned_requests(_controllers, _requests, _now: float) -> void:
 		pass
