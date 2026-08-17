@@ -7,8 +7,9 @@ const ElevatorControllerScript := preload("res://scripts/simulation/elevator_con
 const ElevatorDispatcherScript := preload("res://scripts/simulation/elevator_dispatcher.gd")
 const StageDefinition := preload("res://scripts/run/stage_definition.gd")
 
-## Owns escalating traffic and run phases. It coordinates existing simulation
-## services but never chooses an individual elevator route or stop.
+## Standalone coordinator for escalating traffic and run phases. A future Main
+## node drives it through this public API; it has no Node or UI dependency and
+## never chooses an individual elevator route or stop.
 enum RunPhase {
 	STAGE_INTRO,
 	RUNNING,

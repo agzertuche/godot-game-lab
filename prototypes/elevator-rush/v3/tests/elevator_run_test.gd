@@ -14,6 +14,10 @@ const ElevatorStageDefinition := preload("res://scripts/run/stage_definition.gd"
 var _failures: Array[String] = []
 var _arrival_count := 0
 var _doors_opened_count := 0
+var _stage_started_count := 0
+var _stage_completed_count := 0
+var _stage_failed_count := 0
+var _run_won_count := 0
 
 
 func _init() -> void:
@@ -22,8 +26,13 @@ func _init() -> void:
 	_test_collective_control_skips_opposite_direction_call()
 	_test_capacity_releases_remaining_shared_demand()
 	_test_stage_one_starts_with_three_floors()
+	_test_exact_default_stage_definitions()
 	_test_successful_stage_enters_upgrade_choice()
+	_test_upgrade_choice_prepares_stage_two()
+	_test_final_stage_completion_wins_run()
 	_test_backlog_failure_ends_run()
+	_test_oldest_wait_failure_ends_run()
+	_test_run_manager_emits_stage_and_failure_events()
 	_test_demand_patterns_are_fixed_and_distinct()
 
 	if _failures.is_empty():
@@ -122,6 +131,16 @@ func _test_stage_one_starts_with_three_floors() -> void:
 	_expect(run.phase == ElevatorRunManager.RunPhase.RUNNING, "starting a run should begin stage 1")
 
 
+func _test_exact_default_stage_definitions() -> void:
+	var definitions := ElevatorRunManager.default_stage_definitions()
+	_expect(definitions.size() == 5, "the MVP must define exactly five traffic stages")
+	_expect_stage_definition(definitions[0], 3, ElevatorStageDefinition.PATTERN_LOBBY_UP, 1101)
+	_expect_stage_definition(definitions[1], 4, ElevatorStageDefinition.PATTERN_LOBBY_UP, 2202)
+	_expect_stage_definition(definitions[2], 4, ElevatorStageDefinition.PATTERN_MIXED_RUSH, 3303)
+	_expect_stage_definition(definitions[3], 5, ElevatorStageDefinition.PATTERN_UPPER_RETURN, 4404)
+	_expect_stage_definition(definitions[4], 5, ElevatorStageDefinition.PATTERN_SPLIT_RETURN_STRESS, 5505)
+
+
 func _test_successful_stage_enters_upgrade_choice() -> void:
 	var easy_stage := ElevatorStageDefinition.new(
 		1, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 71,
@@ -139,6 +158,30 @@ func _test_successful_stage_enters_upgrade_choice() -> void:
 	_expect(run.phase == ElevatorRunManager.RunPhase.UPGRADE_CHOICE, "a drained non-final stage should offer an upgrade choice")
 
 
+func _test_upgrade_choice_prepares_stage_two() -> void:
+	var definitions := _two_easy_stages()
+	var run := ElevatorRunManager.new(definitions)
+	run.start_run()
+	_run_manager_until_not_running(run)
+	_expect(run.phase == ElevatorRunManager.RunPhase.UPGRADE_CHOICE, "stage 1 should reach the upgrade placeholder before stage 2")
+	_expect(run.prepare_next_stage(), "the run manager should prepare the next stage after an upgrade choice")
+	_expect(run.phase == ElevatorRunManager.RunPhase.STAGE_INTRO, "stage 2 should enter the stage-intro phase before it begins")
+	_expect(run.current_stage_definition().stage_number == 2, "prepare_next_stage should advance to stage 2")
+	_expect(run.start_current_stage(), "the prepared stage should be able to start")
+	_expect(run.phase == ElevatorRunManager.RunPhase.RUNNING, "starting the prepared stage should resume simulation")
+
+
+func _test_final_stage_completion_wins_run() -> void:
+	var final_stage := ElevatorStageDefinition.new(
+		1, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 73,
+	)
+	var definitions: Array[ElevatorStageDefinition] = [final_stage]
+	var run := ElevatorRunManager.new(definitions)
+	run.start_run()
+	_run_manager_until_not_running(run)
+	_expect(run.phase == ElevatorRunManager.RunPhase.WON, "draining the final stage should win the run")
+
+
 func _test_backlog_failure_ends_run() -> void:
 	var stress_stage := ElevatorStageDefinition.new(
 		1, 3, 3, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 0, 60.0, 81,
@@ -148,6 +191,46 @@ func _test_backlog_failure_ends_run() -> void:
 	run.start_run()
 	run.tick(0.1)
 	_expect(run.phase == ElevatorRunManager.RunPhase.FAILED, "a waiting backlog above the stage threshold should fail the run")
+
+
+func _test_oldest_wait_failure_ends_run() -> void:
+	var patience_stage := ElevatorStageDefinition.new(
+		1, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 0.05, 82,
+	)
+	var definitions: Array[ElevatorStageDefinition] = [patience_stage]
+	var run := ElevatorRunManager.new(definitions)
+	run.start_run()
+	run.tick(0.1)
+	run.tick(0.1)
+	_expect(run.phase == ElevatorRunManager.RunPhase.FAILED, "an old active request should fail the run even below backlog capacity")
+
+
+func _test_run_manager_emits_stage_and_failure_events() -> void:
+	_stage_started_count = 0
+	_stage_completed_count = 0
+	_stage_failed_count = 0
+	_run_won_count = 0
+	var final_stage := ElevatorStageDefinition.new(
+		1, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 83,
+	)
+	var success_run := ElevatorRunManager.new([final_stage])
+	success_run.stage_started.connect(_record_stage_started)
+	success_run.stage_completed.connect(_record_stage_completed)
+	success_run.run_won.connect(_record_run_won)
+	success_run.start_run()
+	_run_manager_until_not_running(success_run)
+	_expect(_stage_started_count == 1, "starting a stage should emit stage_started once")
+	_expect(_stage_completed_count == 1, "draining a stage should emit stage_completed once")
+	_expect(_run_won_count == 1, "the final stage should emit run_won once")
+
+	var failure_stage := ElevatorStageDefinition.new(
+		1, 3, 2, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 0, 60.0, 84,
+	)
+	var failed_run := ElevatorRunManager.new([failure_stage])
+	failed_run.stage_failed.connect(_record_stage_failed)
+	failed_run.start_run()
+	failed_run.tick(0.1)
+	_expect(_stage_failed_count == 1, "a threshold failure should emit stage_failed once")
 
 
 func _test_demand_patterns_are_fixed_and_distinct() -> void:
@@ -169,6 +252,31 @@ func _test_demand_patterns_are_fixed_and_distinct() -> void:
 		if int(entry.origin_floor) != 1:
 			has_non_lobby_origin = true
 	_expect(has_non_lobby_origin, "mixed-rush traffic should differ from pure lobby-up demand")
+
+
+func _two_easy_stages() -> Array[ElevatorStageDefinition]:
+	return [
+		ElevatorStageDefinition.new(1, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 91),
+		ElevatorStageDefinition.new(2, 4, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 92),
+	]
+
+
+func _run_manager_until_not_running(run: ElevatorRunManager) -> void:
+	for _step: int in 80:
+		run.tick(0.25)
+		if run.phase != ElevatorRunManager.RunPhase.RUNNING:
+			return
+
+
+func _expect_stage_definition(
+	definition: ElevatorStageDefinition,
+	expected_floors: int,
+	expected_pattern: String,
+	expected_seed: int,
+) -> void:
+	_expect(definition.floor_count == expected_floors, "stage %d should use %d floors" % [definition.stage_number, expected_floors])
+	_expect(definition.pattern == expected_pattern, "stage %d should use its defined demand pattern" % definition.stage_number)
+	_expect(definition.seed == expected_seed, "stage %d should keep its fixed replay seed" % definition.stage_number)
 
 
 func _run_until_complete(
@@ -197,3 +305,19 @@ func _record_arrival(_floor: int) -> void:
 
 func _record_doors_opened(_floor: int) -> void:
 	_doors_opened_count += 1
+
+
+func _record_stage_started(_definition: ElevatorStageDefinition) -> void:
+	_stage_started_count += 1
+
+
+func _record_stage_completed(_definition: ElevatorStageDefinition) -> void:
+	_stage_completed_count += 1
+
+
+func _record_stage_failed(_definition: ElevatorStageDefinition, _reason: String) -> void:
+	_stage_failed_count += 1
+
+
+func _record_run_won() -> void:
+	_run_won_count += 1
