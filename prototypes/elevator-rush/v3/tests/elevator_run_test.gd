@@ -8,6 +8,8 @@ const ElevatorPassenger := preload("res://scripts/simulation/passenger.gd")
 const HallRequestManager := preload("res://scripts/simulation/hall_request_manager.gd")
 const ElevatorController := preload("res://scripts/simulation/elevator_controller.gd")
 const ElevatorDispatcher := preload("res://scripts/simulation/elevator_dispatcher.gd")
+const ElevatorRunManager := preload("res://scripts/run/run_manager.gd")
+const ElevatorStageDefinition := preload("res://scripts/run/stage_definition.gd")
 
 var _failures: Array[String] = []
 var _arrival_count := 0
@@ -19,6 +21,10 @@ func _init() -> void:
 	_test_autonomous_step_moves_dwells_and_delivers()
 	_test_collective_control_skips_opposite_direction_call()
 	_test_capacity_releases_remaining_shared_demand()
+	_test_stage_one_starts_with_three_floors()
+	_test_successful_stage_enters_upgrade_choice()
+	_test_backlog_failure_ends_run()
+	_test_demand_patterns_are_fixed_and_distinct()
 
 	if _failures.is_empty():
 		print("elevator_run_test: PASS")
@@ -106,6 +112,63 @@ func _test_capacity_releases_remaining_shared_demand() -> void:
 	_expect(elevator.passengers.size() == 1, "capacity should cap boarding")
 	_expect(request.is_active(), "unboarded shared demand must stay active")
 	_expect(request.assigned_elevator_id == 0, "remaining demand should be reoffered")
+
+
+func _test_stage_one_starts_with_three_floors() -> void:
+	var run := ElevatorRunManager.new()
+	run.start_run()
+	_expect(run.current_stage_definition().floor_count == 3, "stage 1 should use a three-floor building")
+	_expect(run.controllers.size() == 3, "every stage should coordinate three independent controllers")
+	_expect(run.phase == ElevatorRunManager.RunPhase.RUNNING, "starting a run should begin stage 1")
+
+
+func _test_successful_stage_enters_upgrade_choice() -> void:
+	var easy_stage := ElevatorStageDefinition.new(
+		1, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 71,
+	)
+	var final_stage := ElevatorStageDefinition.new(
+		2, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 72,
+	)
+	var definitions: Array[ElevatorStageDefinition] = [easy_stage, final_stage]
+	var run := ElevatorRunManager.new(definitions)
+	run.start_run()
+	for _step: int in 80:
+		run.tick(0.25)
+		if run.phase != ElevatorRunManager.RunPhase.RUNNING:
+			break
+	_expect(run.phase == ElevatorRunManager.RunPhase.UPGRADE_CHOICE, "a drained non-final stage should offer an upgrade choice")
+
+
+func _test_backlog_failure_ends_run() -> void:
+	var stress_stage := ElevatorStageDefinition.new(
+		1, 3, 3, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 0, 60.0, 81,
+	)
+	var definitions: Array[ElevatorStageDefinition] = [stress_stage]
+	var run := ElevatorRunManager.new(definitions)
+	run.start_run()
+	run.tick(0.1)
+	_expect(run.phase == ElevatorRunManager.RunPhase.FAILED, "a waiting backlog above the stage threshold should fail the run")
+
+
+func _test_demand_patterns_are_fixed_and_distinct() -> void:
+	var definitions := ElevatorRunManager.default_stage_definitions()
+	var first_run := ElevatorRunManager.new(definitions)
+	var replay_run := ElevatorRunManager.new(definitions)
+	first_run.start_run()
+	replay_run.start_run()
+	var lobby_schedule := first_run.demand_schedule()
+	_expect(lobby_schedule == replay_run.demand_schedule(), "a stage demand schedule should replay exactly from its seed")
+	for entry: Dictionary in lobby_schedule:
+		_expect(int(entry.origin_floor) == 1, "lobby-up traffic should originate at floor 1")
+
+	var mixed_definition: ElevatorStageDefinition = definitions[2]
+	var mixed_run := ElevatorRunManager.new([mixed_definition])
+	mixed_run.start_run()
+	var has_non_lobby_origin := false
+	for entry: Dictionary in mixed_run.demand_schedule():
+		if int(entry.origin_floor) != 1:
+			has_non_lobby_origin = true
+	_expect(has_non_lobby_origin, "mixed-rush traffic should differ from pure lobby-up demand")
 
 
 func _run_until_complete(
