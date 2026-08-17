@@ -40,6 +40,8 @@ func _init() -> void:
 	_test_upgrade_offers_are_seeded_and_unique()
 	_test_upgrade_build_retains_exactly_one_choice()
 	_test_upgrade_effects_change_named_simulation_tunables()
+	_test_wide_service_expands_default_coverage()
+	_test_express_service_keeps_compatible_pickups()
 
 	if _failures.is_empty():
 		print("elevator_run_test: PASS")
@@ -321,7 +323,7 @@ func _test_upgrade_effects_change_named_simulation_tunables() -> void:
 	var doors_run := _run_with_effect(definitions["door_actuators"])
 	_expect(doors_run.controllers[0].door_dwell_seconds < ElevatorController.DEFAULT_DOOR_DWELL_SECONDS, "Door Actuators should reduce door dwell")
 	var patience_run := _run_with_effect(definitions["patient_crowd"])
-	_expect(patience_run._patience_multiplier > 1.0, "Patient Crowd should increase the failure wait threshold")
+	_expect(patience_run.upgrade_manager.patience_multiplier > 1.0, "Patient Crowd should increase the failure wait threshold")
 	var lobby_run := _run_with_effect(definitions["lobby_parking"])
 	_expect(lobby_run.controllers[2].staging_floor == 1, "Lobby Parking should stage every car at floor 1")
 	var bias_run := _run_with_effect(definitions["directional_bias"])
@@ -331,13 +333,13 @@ func _test_upgrade_effects_change_named_simulation_tunables() -> void:
 	var priority_run := _run_with_effect(definitions["priority_routing"])
 	_expect(priority_run.dispatcher.waiting_time_priority > ElevatorDispatcher.WAITING_TIME_PRIORITY, "Priority Routing should strengthen request aging")
 	var preview_run := _run_with_effect(definitions["traffic_preview"])
-	_expect(preview_run.traffic_preview_unlocked, "Traffic Preview should unlock next-stage visibility")
+	_expect(preview_run.upgrade_manager.traffic_preview_unlocked, "Traffic Preview should unlock next-stage visibility")
 	var boarding_run := _run_with_effect(definitions["quick_boarding"])
 	_expect(boarding_run.controllers[0].transfer_seconds < ElevatorController.DEFAULT_TRANSFER_SECONDS, "Quick Boarding should shorten transfer time")
 	var relay_run := _run_with_effect(definitions["dispatch_relay"])
 	_expect(relay_run.dispatcher.intermediate_stop_penalty < ElevatorDispatcher.INTERMEDIATE_STOP_PENALTY, "Dispatch Relay should lower intermediate-stop penalty")
 	var service_run := _run_with_effect(definitions["wide_service"])
-	_expect(service_run._wide_service_enabled, "Wide Service should enable full unlocked-floor coverage")
+	_expect(service_run.upgrade_manager.wide_service_enabled, "Wide Service should enable full unlocked-floor coverage")
 
 
 func _run_with_effect(definition: ElevatorUpgradeDefinition) -> ElevatorRunManager:
@@ -346,9 +348,47 @@ func _run_with_effect(definition: ElevatorUpgradeDefinition) -> ElevatorRunManag
 	)
 	var run := ElevatorRunManager.new([stage])
 	run.current_stage_index = 0
-	run._apply_upgrade_effect(definition)
+	run.upgrade_manager.apply_selected_upgrade(definition)
 	run._prepare_current_stage()
 	return run
+
+
+func _test_wide_service_expands_default_coverage() -> void:
+	var stage := ElevatorStageDefinition.new(
+		1, 5, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 712,
+	)
+	var baseline := ElevatorRunManager.new([stage])
+	baseline.current_stage_index = 0
+	baseline._prepare_current_stage()
+	_expect(baseline.controllers[0].allowed_max_floor < stage.floor_count, "default Elevator 1 coverage should be narrower than unlocked floors")
+	_expect(baseline.controllers[2].allowed_min_floor > 1, "default Elevator 3 coverage should focus on upper floors")
+
+	var manager := ElevatorUpgradeManager.new(442)
+	var wide: ElevatorUpgradeDefinition = null
+	for definition: ElevatorUpgradeDefinition in manager.definitions():
+		if definition.id == "wide_service":
+			wide = definition
+	var expanded := ElevatorRunManager.new([stage])
+	expanded.current_stage_index = 0
+	expanded.upgrade_manager.apply_selected_upgrade(wide)
+	expanded._prepare_current_stage()
+	for controller: ElevatorController in expanded.controllers:
+		_expect(controller.allowed_min_floor == 1 and controller.allowed_max_floor == stage.floor_count, "Wide Service should expand every car to all unlocked floors")
+
+
+func _test_express_service_keeps_compatible_pickups() -> void:
+	var manager := HallRequestManager.new(5)
+	var elevator := ElevatorController.new(1, 2, 5)
+	elevator.service_direction = SimulationTypes.Direction.UP
+	elevator.set_express_service_enabled(true)
+	var rider := ElevatorPassenger.new(2, 5, 0.0)
+	rider.state = SimulationTypes.PassengerState.RIDING
+	elevator.passengers.append(rider)
+	elevator.destination_requests[5] = true
+	var waiting := ElevatorPassenger.new(3, 5, 0.0)
+	var request := manager.register_waiting_passenger(waiting, 0.0)
+	elevator.assign_hall_request(request)
+	_expect(elevator.next_stop() == 3, "Express Service should still stop for compatible UP hall calls while carrying riders")
 
 
 func _two_easy_stages() -> Array[ElevatorStageDefinition]:

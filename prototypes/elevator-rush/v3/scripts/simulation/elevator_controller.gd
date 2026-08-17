@@ -28,6 +28,7 @@ var target_floor := 0
 var staging_floor: int
 var allowed_min_floor := 1
 var allowed_max_floor: int
+var building_floor_count: int
 var travel_floor := 1.0
 var door_dwell_remaining := 0.0
 var travel_floors_per_second := DEFAULT_TRAVEL_FLOORS_PER_SECOND
@@ -41,6 +42,7 @@ func _init(identifier: int, starting_floor: int, floor_count: int) -> void:
 	current_floor = starting_floor
 	staging_floor = starting_floor
 	allowed_max_floor = floor_count
+	building_floor_count = floor_count
 	travel_floor = float(starting_floor)
 
 
@@ -69,7 +71,7 @@ func set_transfer_time_multiplier(multiplier: float) -> void:
 
 
 func set_idle_staging_floor(floor_value: int) -> void:
-	staging_floor = clampi(floor_value, allowed_min_floor, allowed_max_floor)
+	staging_floor = clampi(floor_value, 1, building_floor_count)
 
 
 func set_express_service_enabled(enabled: bool) -> void:
@@ -242,22 +244,32 @@ func _nearest_stop_in_direction(direction: int) -> int:
 	for floor_value: int in destination_requests:
 		if _is_ahead(floor_value, direction) and (result == 0 or _is_nearer_in_direction(floor_value, result, direction)):
 			result = floor_value
-	if express_service_enabled and not passengers.is_empty():
-		return result
 	for request: ElevatorHallRequest in assigned_hall_requests:
-		if request.is_active() and request.direction == direction and _is_ahead(request.floor, direction):
+		if not request.is_active() or not _is_ahead(request.floor, direction):
+			continue
+		if not _can_serve_hall_request(request, direction):
+			continue
+		if request.direction == direction:
 			if result == 0 or _is_nearer_in_direction(request.floor, result, direction):
 				result = request.floor
 	return result
 
 
 func _request_at_current_floor(direction: int) -> ElevatorHallRequest:
-	if express_service_enabled and not passengers.is_empty():
-		return null
 	for request: ElevatorHallRequest in assigned_hall_requests:
-		if request.is_active() and request.floor == current_floor and request.direction == direction:
+		if request.is_active() and request.floor == current_floor and _can_serve_hall_request(request, direction):
 			return request
 	return null
+
+
+func _can_serve_hall_request(request: ElevatorHallRequest, direction: int) -> bool:
+	if request.direction != direction:
+		return false
+	# Express Service still permits compatible, same-direction pickups. It only
+	# explicitly rejects work outside the current directional service sweep.
+	if express_service_enabled and not passengers.is_empty():
+		return request.direction == service_direction
+	return true
 
 
 func _adopt_pickup_direction_if_needed() -> void:
