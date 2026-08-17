@@ -10,10 +10,13 @@ const ElevatorController := preload("res://scripts/simulation/elevator_controlle
 const ElevatorDispatcher := preload("res://scripts/simulation/elevator_dispatcher.gd")
 
 var _failures: Array[String] = []
+var _arrival_count := 0
+var _doors_opened_count := 0
 
 
 func _init() -> void:
 	_test_shared_up_request_is_assigned_and_completed()
+	_test_autonomous_step_moves_dwells_and_delivers()
 	_test_collective_control_skips_opposite_direction_call()
 	_test_capacity_releases_remaining_shared_demand()
 
@@ -44,6 +47,30 @@ func _test_shared_up_request_is_assigned_and_completed() -> void:
 	_run_until_complete(elevator, manager, 0.0)
 	_expect(passenger.state == SimulationTypes.PassengerState.COMPLETED, "passenger should finish after pickup and dropoff")
 	_expect(passenger.destination_floor == 3, "destination should remain intact through ride")
+
+
+func _test_autonomous_step_moves_dwells_and_delivers() -> void:
+	var manager := HallRequestManager.new(3)
+	var dispatcher := ElevatorDispatcher.new()
+	var elevator := ElevatorController.new(1, 1, 3)
+	var passenger := ElevatorPassenger.new(1, 3, 0.0)
+	manager.register_waiting_passenger(passenger, 0.0)
+	var controllers: Array[ElevatorController] = [elevator]
+	dispatcher.assign_unassigned_requests(controllers, manager.get_active_requests(), 0.0)
+	_arrival_count = 0
+	_doors_opened_count = 0
+	elevator.elevator_arrived.connect(_record_arrival)
+	elevator.doors_opened.connect(_record_doors_opened)
+
+	for _step: int in 20:
+		elevator.step(0.5, manager)
+		if passenger.state == SimulationTypes.PassengerState.COMPLETED:
+			break
+
+	_expect(_arrival_count == 2, "autonomous step should arrive at pickup and destination")
+	_expect(_doors_opened_count == 2, "each autonomous service stop should open logical doors")
+	_expect(passenger.state == SimulationTypes.PassengerState.COMPLETED, "autonomous step should finish the full passenger trip")
+	_expect(elevator.door_state == SimulationTypes.DoorState.CLOSED, "doors should close after logical dwell and transfer")
 
 
 func _test_collective_control_skips_opposite_direction_call() -> void:
@@ -99,3 +126,11 @@ func _run_until_complete(
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
+
+
+func _record_arrival(_floor: int) -> void:
+	_arrival_count += 1
+
+
+func _record_doors_opened(_floor: int) -> void:
+	_doors_opened_count += 1
