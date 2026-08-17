@@ -1,0 +1,195 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+
+[sub_resource type="StyleBoxFlat" id="StylePanel"]
+bg_color = Color(0.055, 0.082, 0.125, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.25, 0.63, 0.92, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+content_margin_left = 20.0
+content_margin_top = 18.0
+content_margin_right = 20.0
+content_margin_bottom = 18.0
+
+[sub_resource type="StyleBoxFlat" id="StyleButton"]
+bg_color = Color(0.12, 0.42, 0.68, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.018, 0.027, 0.047, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Title" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.97, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 32
+text = "ELEVATOR RUSH"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.57, 0.79, 0.98, 1)
+theme_override_font_sizes/font_size = 16
+text = "ABSTRACT SYSTEM RUN"
+horizontal_alignment = 1
+
+[node name="PhaseLabel" type="Label" parent="Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.86, 0.37, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 17
+text = "READY"
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="StageHUD" type="PanelContainer" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StylePanel")
+
+[node name="Content" type="VBoxContainer" parent="Margin/Layout/StageHUD"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="Margin/Layout/StageHUD/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.97, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "STAGE 1"
+
+[node name="Stats" type="Label" parent="Margin/Layout/StageHUD/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.74, 0.86, 0.97, 1)
+theme_override_font_sizes/font_size = 17
+text = "BACKLOG 0     OLDEST WAIT 0.0s\nBUILD: BASE SYSTEM"
+
+[node name="Spacer" type="Control" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StartButton" type="Button" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleButton")
+text = "START RUN"
+
+[node name="UpgradeChoicePanel" type="PanelContainer" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 280)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StylePanel")
+
+[node name="Content" type="VBoxContainer" parent="Margin/Layout/UpgradeChoicePanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="Label" parent="Margin/Layout/UpgradeChoicePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.86, 0.37, 1)
+theme_override_font_sizes/font_size = 24
+text = "SYSTEM UPGRADE"
+horizontal_alignment = 1
+
+[node name="Help" type="Label" parent="Margin/Layout/UpgradeChoicePanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
+theme_override_font_sizes/font_size = 16
+text = "Choose one improvement for the next stage."
+horizontal_alignment = 1
+
+[node name="ChoiceOne" type="Button" parent="Margin/Layout/UpgradeChoicePanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "MOTOR TUNE  —  Faster travel"
+
+[node name="ChoiceTwo" type="Button" parent="Margin/Layout/UpgradeChoicePanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "CABIN EXPANSION  —  More capacity"
+
+[node name="ChoiceThree" type="Button" parent="Margin/Layout/UpgradeChoicePanel/Content"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "QUICK BOARDING  —  Faster transfers"
+
+[node name="RunResultPanel" type="PanelContainer" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 210)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StylePanel")
+
+[node name="Content" type="VBoxContainer" parent="Margin/Layout/RunResultPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="Label" parent="Margin/Layout/RunResultPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.55, 0.48, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 30
+text = "RUN OVER"
+horizontal_alignment = 1
+
+[node name="Summary" type="Label" parent="Margin/Layout/RunResultPanel/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.86, 0.93, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "STAGE REACHED: 1\nSYSTEM SCORE: --"
+horizontal_alignment = 1
+
+[node name="Restart" type="Button" parent="Margin/Layout/RunResultPanel/Content"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "START NEW RUN"
