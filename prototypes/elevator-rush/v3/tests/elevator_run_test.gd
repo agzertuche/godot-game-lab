@@ -41,7 +41,7 @@ func _init() -> void:
 	_test_upgrade_build_retains_exactly_one_choice()
 	_test_upgrade_effects_change_named_simulation_tunables()
 	_test_wide_service_expands_default_coverage()
-	_test_express_service_keeps_compatible_pickups()
+	_test_express_service_defers_hall_pickups_while_loaded()
 
 	if _failures.is_empty():
 		print("elevator_run_test: PASS")
@@ -376,19 +376,30 @@ func _test_wide_service_expands_default_coverage() -> void:
 		_expect(controller.allowed_min_floor == 1 and controller.allowed_max_floor == stage.floor_count, "Wide Service should expand every car to all unlocked floors")
 
 
-func _test_express_service_keeps_compatible_pickups() -> void:
-	var manager := HallRequestManager.new(5)
-	var elevator := ElevatorController.new(1, 2, 5)
-	elevator.service_direction = SimulationTypes.Direction.UP
-	elevator.set_express_service_enabled(true)
+func _test_express_service_defers_hall_pickups_while_loaded() -> void:
+	var normal_manager := HallRequestManager.new(5)
+	var express_manager := HallRequestManager.new(5)
+	var normal := ElevatorController.new(1, 2, 5)
+	normal.service_direction = SimulationTypes.Direction.UP
+	var express := ElevatorController.new(2, 2, 5)
+	express.service_direction = SimulationTypes.Direction.UP
+	express.set_express_service_enabled(true)
 	var rider := ElevatorPassenger.new(2, 5, 0.0)
 	rider.state = SimulationTypes.PassengerState.RIDING
-	elevator.passengers.append(rider)
-	elevator.destination_requests[5] = true
+	normal.passengers.append(rider)
+	normal.destination_requests[5] = true
+	var express_rider := ElevatorPassenger.new(2, 5, 0.0)
+	express_rider.state = SimulationTypes.PassengerState.RIDING
+	express.passengers.append(express_rider)
+	express.destination_requests[5] = true
 	var waiting := ElevatorPassenger.new(3, 5, 0.0)
-	var request := manager.register_waiting_passenger(waiting, 0.0)
-	elevator.assign_hall_request(request)
-	_expect(elevator.next_stop() == 3, "Express Service should still stop for compatible UP hall calls while carrying riders")
+	var request := normal_manager.register_waiting_passenger(waiting, 0.0)
+	normal.assign_hall_request(request)
+	var express_waiting := ElevatorPassenger.new(3, 5, 0.0)
+	var express_request := express_manager.register_waiting_passenger(express_waiting, 0.0)
+	express.assign_hall_request(express_request)
+	_expect(normal.next_stop() == 3, "normal service should collect compatible UP demand before a later destination")
+	_expect(express.next_stop() == 5, "Express Service should defer hall pickups while riders are onboard")
 
 
 func _two_easy_stages() -> Array[ElevatorStageDefinition]:

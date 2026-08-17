@@ -244,6 +244,8 @@ func _nearest_stop_in_direction(direction: int) -> int:
 	for floor_value: int in destination_requests:
 		if _is_ahead(floor_value, direction) and (result == 0 or _is_nearer_in_direction(floor_value, result, direction)):
 			result = floor_value
+	if express_service_enabled and not passengers.is_empty():
+		return result
 	for request: ElevatorHallRequest in assigned_hall_requests:
 		if not request.is_active() or not _is_ahead(request.floor, direction):
 			continue
@@ -256,6 +258,8 @@ func _nearest_stop_in_direction(direction: int) -> int:
 
 
 func _request_at_current_floor(direction: int) -> ElevatorHallRequest:
+	if express_service_enabled and not passengers.is_empty():
+		return null
 	for request: ElevatorHallRequest in assigned_hall_requests:
 		if request.is_active() and request.floor == current_floor and _can_serve_hall_request(request, direction):
 			return request
@@ -263,13 +267,7 @@ func _request_at_current_floor(direction: int) -> ElevatorHallRequest:
 
 
 func _can_serve_hall_request(request: ElevatorHallRequest, direction: int) -> bool:
-	if request.direction != direction:
-		return false
-	# Express Service still permits compatible, same-direction pickups. It only
-	# explicitly rejects work outside the current directional service sweep.
-	if express_service_enabled and not passengers.is_empty():
-		return request.direction == service_direction
-	return true
+	return request.direction == direction
 
 
 func _adopt_pickup_direction_if_needed() -> void:

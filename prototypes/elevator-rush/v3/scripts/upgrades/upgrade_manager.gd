@@ -43,7 +43,7 @@ func definitions() -> Array[ElevatorUpgradeDefinition]:
 		UpgradeDefinition.new("patient_crowd", "Patient Crowd", "Passengers tolerate 35% longer waits.", {"patience_multiplier": 1.35}),
 		UpgradeDefinition.new("lobby_parking", "Lobby Parking", "Idle elevators stage at Floor 1.", {"lobby_parking": true}),
 		UpgradeDefinition.new("directional_bias", "Directional Bias", "Favor cars already moving in the requested direction.", {"direction_match_bonus": 4.0}),
-		UpgradeDefinition.new("express_service", "Express Service", "Loaded cars skip incompatible hall calls while carrying riders.", {"express_service": true}),
+		UpgradeDefinition.new("express_service", "Express Service", "Loaded cars prioritize cabin destinations and defer hall pickups until empty.", {"express_service": true}),
 		UpgradeDefinition.new("priority_routing", "Priority Routing", "Much stronger priority for old hall requests.", {"waiting_time_priority_multiplier": 2.5}),
 		UpgradeDefinition.new("traffic_preview", "Traffic Preview", "Reveal the next traffic stage before it begins.", {"traffic_preview": true}),
 		UpgradeDefinition.new("quick_boarding", "Quick Boarding", "Passengers transfer 45% faster at stops.", {"transfer_time_multiplier": 0.55}),
