@@ -6,6 +6,9 @@ const HallRequestManager := preload("res://scripts/simulation/hall_request_manag
 const ElevatorControllerScript := preload("res://scripts/simulation/elevator_controller.gd")
 const ElevatorDispatcherScript := preload("res://scripts/simulation/elevator_dispatcher.gd")
 const StageDefinition := preload("res://scripts/run/stage_definition.gd")
+const UpgradeManagerScript := preload("res://scripts/upgrades/upgrade_manager.gd")
+
+const DEFAULT_UPGRADE_SEED := 20260817
 
 ## Standalone coordinator for escalating traffic and run phases. A future Main
 ## node drives it through this public API; it has no Node or UI dependency and
@@ -31,6 +34,20 @@ var stage_elapsed := 0.0
 var request_manager: ElevatorHallRequestManager
 var dispatcher: ElevatorDispatcher
 var controllers: Array[ElevatorController] = []
+var upgrade_manager: ElevatorUpgradeManager
+var traffic_preview_unlocked := false
+
+var _travel_speed_multiplier := 1.0
+var _capacity_bonus := 0
+var _door_dwell_multiplier := 1.0
+var _patience_multiplier := 1.0
+var _lobby_parking_enabled := false
+var _direction_match_bonus := 0.0
+var _express_service_enabled := false
+var _waiting_time_priority_multiplier := 1.0
+var _transfer_time_multiplier := 1.0
+var _intermediate_stop_penalty_multiplier := 1.0
+var _wide_service_enabled := false
 
 var _demand_schedule: Array[Dictionary] = []
 var _next_demand_index := 0
@@ -39,6 +56,7 @@ var _spawned_passengers: Array[ElevatorPassenger] = []
 
 func _init(definitions: Array[ElevatorStageDefinition] = []) -> void:
 	stage_definitions = definitions.duplicate() if not definitions.is_empty() else default_stage_definitions()
+	upgrade_manager = UpgradeManagerScript.new(DEFAULT_UPGRADE_SEED)
 
 
 static func default_stage_definitions() -> Array[ElevatorStageDefinition]:
@@ -52,6 +70,7 @@ static func default_stage_definitions() -> Array[ElevatorStageDefinition]:
 
 
 func start_run() -> void:
+	_reset_run_upgrades()
 	current_stage_index = 0
 	_prepare_current_stage()
 	start_current_stage()
@@ -60,6 +79,8 @@ func start_run() -> void:
 func prepare_next_stage() -> bool:
 	if phase != RunPhase.UPGRADE_CHOICE:
 		return false
+	if not upgrade_manager.current_offer.is_empty():
+		return false
 	current_stage_index += 1
 	if current_stage_index >= stage_definitions.size():
 		phase = RunPhase.WON
@@ -67,6 +88,33 @@ func prepare_next_stage() -> bool:
 		return false
 	_prepare_current_stage()
 	return true
+
+
+func current_upgrade_offer() -> Array[ElevatorUpgradeDefinition]:
+	if phase != RunPhase.UPGRADE_CHOICE:
+		return []
+	return upgrade_manager.current_offer.duplicate()
+
+
+## The only mutation point for the run build. It is intentionally unavailable
+## while a stage is running.
+func choose_upgrade(upgrade_id: String) -> bool:
+	if phase != RunPhase.UPGRADE_CHOICE:
+		return false
+	var definition := upgrade_manager.choose_upgrade(upgrade_id)
+	if definition == null:
+		return false
+	_apply_upgrade_effect(definition)
+	return prepare_next_stage()
+
+
+func next_stage_preview() -> ElevatorStageDefinition:
+	if not traffic_preview_unlocked:
+		return null
+	var next_index := current_stage_index + 1
+	if next_index < 0 or next_index >= stage_definitions.size():
+		return null
+	return stage_definitions[next_index]
 
 
 func start_current_stage() -> bool:
@@ -146,7 +194,9 @@ func _prepare_current_stage() -> void:
 		var starting_floor := _starting_floor(elevator_index, definition.floor_count)
 		var controller: ElevatorController = ElevatorControllerScript.new(elevator_index + 1, starting_floor, definition.floor_count)
 		controller.configure_service(1, definition.floor_count, starting_floor)
+		_apply_controller_tunables(controller, definition)
 		controllers.append(controller)
+	_apply_dispatcher_tunables()
 
 
 func _starting_floor(elevator_index: int, floor_count: int) -> int:
@@ -187,14 +237,15 @@ func _has_failed_current_stage() -> bool:
 	var definition := current_stage_definition()
 	if active_waiting_count() > definition.max_active_waiting:
 		return true
-	return oldest_waiting_time() > definition.max_oldest_wait_seconds
+	return oldest_waiting_time() > definition.max_oldest_wait_seconds * _patience_multiplier
 
 
 func _fail_current_stage() -> void:
 	var definition := current_stage_definition()
 	var reason := "Backlog %d exceeded limit %d" % [active_waiting_count(), definition.max_active_waiting]
-	if oldest_waiting_time() > definition.max_oldest_wait_seconds:
-		reason = "Oldest wait %.1fs exceeded limit %.1fs" % [oldest_waiting_time(), definition.max_oldest_wait_seconds]
+	var wait_limit := definition.max_oldest_wait_seconds * _patience_multiplier
+	if oldest_waiting_time() > wait_limit:
+		reason = "Oldest wait %.1fs exceeded limit %.1fs" % [oldest_waiting_time(), wait_limit]
 	phase = RunPhase.FAILED
 	stage_failed.emit(definition, reason)
 
@@ -206,6 +257,7 @@ func _complete_current_stage() -> void:
 		phase = RunPhase.WON
 		run_won.emit()
 		return
+	upgrade_manager.create_offer(current_stage_definition().stage_number)
 	phase = RunPhase.UPGRADE_CHOICE
 
 
@@ -259,3 +311,65 @@ func _random_non_matching_trip(min_floor: int, max_floor: int, rng: RandomNumber
 	while destination == origin:
 		destination = rng.randi_range(1, max_floor)
 	return {"origin_floor": origin, "destination_floor": destination}
+
+
+func _reset_run_upgrades() -> void:
+	upgrade_manager = UpgradeManagerScript.new(DEFAULT_UPGRADE_SEED)
+	traffic_preview_unlocked = false
+	_travel_speed_multiplier = 1.0
+	_capacity_bonus = 0
+	_door_dwell_multiplier = 1.0
+	_patience_multiplier = 1.0
+	_lobby_parking_enabled = false
+	_direction_match_bonus = 0.0
+	_express_service_enabled = false
+	_waiting_time_priority_multiplier = 1.0
+	_transfer_time_multiplier = 1.0
+	_intermediate_stop_penalty_multiplier = 1.0
+	_wide_service_enabled = false
+
+
+func _apply_upgrade_effect(definition: ElevatorUpgradeDefinition) -> void:
+	var effect := definition.effect
+	if effect.has("travel_speed_multiplier"):
+		_travel_speed_multiplier *= float(effect["travel_speed_multiplier"])
+	if effect.has("capacity_bonus"):
+		_capacity_bonus += int(effect["capacity_bonus"])
+	if effect.has("door_dwell_multiplier"):
+		_door_dwell_multiplier *= float(effect["door_dwell_multiplier"])
+	if effect.has("patience_multiplier"):
+		_patience_multiplier *= float(effect["patience_multiplier"])
+	if effect.has("lobby_parking"):
+		_lobby_parking_enabled = bool(effect["lobby_parking"])
+	if effect.has("direction_match_bonus"):
+		_direction_match_bonus += float(effect["direction_match_bonus"])
+	if effect.has("express_service"):
+		_express_service_enabled = bool(effect["express_service"])
+	if effect.has("waiting_time_priority_multiplier"):
+		_waiting_time_priority_multiplier *= float(effect["waiting_time_priority_multiplier"])
+	if effect.has("traffic_preview"):
+		traffic_preview_unlocked = bool(effect["traffic_preview"])
+	if effect.has("transfer_time_multiplier"):
+		_transfer_time_multiplier *= float(effect["transfer_time_multiplier"])
+	if effect.has("intermediate_stop_penalty_multiplier"):
+		_intermediate_stop_penalty_multiplier *= float(effect["intermediate_stop_penalty_multiplier"])
+	if effect.has("wide_service"):
+		_wide_service_enabled = bool(effect["wide_service"])
+
+
+func _apply_controller_tunables(controller: ElevatorController, definition: ElevatorStageDefinition) -> void:
+	controller.set_travel_speed_multiplier(_travel_speed_multiplier)
+	controller.set_capacity_bonus(_capacity_bonus)
+	controller.set_door_dwell_multiplier(_door_dwell_multiplier)
+	controller.set_transfer_time_multiplier(_transfer_time_multiplier)
+	controller.set_express_service_enabled(_express_service_enabled)
+	if _lobby_parking_enabled:
+		controller.set_idle_staging_floor(1)
+	if _wide_service_enabled:
+		controller.configure_service(1, definition.floor_count, controller.staging_floor)
+
+
+func _apply_dispatcher_tunables() -> void:
+	dispatcher.set_direction_match_bonus(_direction_match_bonus)
+	dispatcher.set_waiting_time_priority_multiplier(_waiting_time_priority_multiplier)
+	dispatcher.set_intermediate_stop_penalty_multiplier(_intermediate_stop_penalty_multiplier)

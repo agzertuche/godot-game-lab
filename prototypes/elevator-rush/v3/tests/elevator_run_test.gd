@@ -10,6 +10,8 @@ const ElevatorController := preload("res://scripts/simulation/elevator_controlle
 const ElevatorDispatcher := preload("res://scripts/simulation/elevator_dispatcher.gd")
 const ElevatorRunManager := preload("res://scripts/run/run_manager.gd")
 const ElevatorStageDefinition := preload("res://scripts/run/stage_definition.gd")
+const ElevatorUpgradeManager := preload("res://scripts/upgrades/upgrade_manager.gd")
+const ElevatorUpgradeDefinition := preload("res://scripts/upgrades/upgrade_definition.gd")
 
 var _failures: Array[String] = []
 var _arrival_count := 0
@@ -34,6 +36,10 @@ func _init() -> void:
 	_test_oldest_wait_failure_ends_run()
 	_test_run_manager_emits_stage_and_failure_events()
 	_test_demand_patterns_are_fixed_and_distinct()
+	_test_upgrade_pool_has_twelve_typed_definitions()
+	_test_upgrade_offers_are_seeded_and_unique()
+	_test_upgrade_build_retains_exactly_one_choice()
+	_test_upgrade_effects_change_named_simulation_tunables()
 
 	if _failures.is_empty():
 		print("elevator_run_test: PASS")
@@ -164,7 +170,10 @@ func _test_upgrade_choice_prepares_stage_two() -> void:
 	run.start_run()
 	_run_manager_until_not_running(run)
 	_expect(run.phase == ElevatorRunManager.RunPhase.UPGRADE_CHOICE, "stage 1 should reach the upgrade placeholder before stage 2")
-	_expect(run.prepare_next_stage(), "the run manager should prepare the next stage after an upgrade choice")
+	var offer := run.current_upgrade_offer()
+	_expect(offer.size() == 3, "a cleared stage should produce three upgrade choices")
+	_expect(not run.prepare_next_stage(), "a stage cannot advance before exactly one upgrade is chosen")
+	_expect(run.choose_upgrade(offer[0].id), "choosing one offered upgrade should prepare the next stage")
 	_expect(run.phase == ElevatorRunManager.RunPhase.STAGE_INTRO, "stage 2 should enter the stage-intro phase before it begins")
 	_expect(run.current_stage_definition().stage_number == 2, "prepare_next_stage should advance to stage 2")
 	_expect(run.start_current_stage(), "the prepared stage should be able to start")
@@ -252,6 +261,94 @@ func _test_demand_patterns_are_fixed_and_distinct() -> void:
 		if int(entry.origin_floor) != 1:
 			has_non_lobby_origin = true
 	_expect(has_non_lobby_origin, "mixed-rush traffic should differ from pure lobby-up demand")
+
+
+func _test_upgrade_pool_has_twelve_typed_definitions() -> void:
+	var manager := ElevatorUpgradeManager.new(100)
+	var definitions := manager.definitions()
+	_expect(definitions.size() == 12, "the MVP upgrade pool should contain exactly 12 definitions")
+	var ids: Dictionary = {}
+	for definition: ElevatorUpgradeDefinition in definitions:
+		_expect(not definition.id.is_empty(), "each upgrade needs an id")
+		_expect(not definition.title.is_empty(), "each upgrade needs a title")
+		_expect(not definition.description.is_empty(), "each upgrade needs a description")
+		_expect(not definition.effect.is_empty(), "each upgrade needs an effect payload")
+		ids[definition.id] = true
+	_expect(ids.size() == 12, "upgrade ids must be unique")
+	_expect(ids.has("motor_tune") and ids.has("wide_service"), "the documented upgrade endpoints should exist")
+
+
+func _test_upgrade_offers_are_seeded_and_unique() -> void:
+	var first := ElevatorUpgradeManager.new(221)
+	var replay := ElevatorUpgradeManager.new(221)
+	var first_offer := first.create_offer(2)
+	var replay_offer := replay.create_offer(2)
+	_expect(first_offer.size() == 3, "each upgrade offer should contain exactly three choices")
+	var offer_ids: Array[String] = []
+	var replay_ids: Array[String] = []
+	for definition: ElevatorUpgradeDefinition in first_offer:
+		offer_ids.append(definition.id)
+	for definition: ElevatorUpgradeDefinition in replay_offer:
+		replay_ids.append(definition.id)
+	_expect(offer_ids == replay_ids, "the same seed and stage should produce the same offer")
+	var unique_ids: Dictionary = {}
+	for upgrade_id: String in offer_ids:
+		unique_ids[upgrade_id] = true
+	_expect(unique_ids.size() == 3, "upgrade choices in an offer must be unique")
+
+
+func _test_upgrade_build_retains_exactly_one_choice() -> void:
+	var manager := ElevatorUpgradeManager.new(331)
+	var offer := manager.create_offer(1)
+	var chosen: ElevatorUpgradeDefinition = manager.choose_upgrade(offer[1].id)
+	_expect(chosen != null, "an offered upgrade should be selectable")
+	_expect(manager.build.size() == 1, "one upgrade choice should be retained in the build")
+	_expect(manager.build[0].id == offer[1].id, "the selected upgrade should be retained")
+	_expect(manager.current_offer.is_empty(), "selecting an upgrade should clear the current offer")
+	_expect(manager.choose_upgrade(offer[0].id) == null, "only one choice may be applied from each offer")
+
+
+func _test_upgrade_effects_change_named_simulation_tunables() -> void:
+	var manager := ElevatorUpgradeManager.new(441)
+	var definitions: Dictionary = {}
+	for definition: ElevatorUpgradeDefinition in manager.definitions():
+		definitions[definition.id] = definition
+
+	var motor_run := _run_with_effect(definitions["motor_tune"])
+	_expect(motor_run.controllers[0].travel_floors_per_second > ElevatorController.DEFAULT_TRAVEL_FLOORS_PER_SECOND, "Motor Tune should increase travel speed")
+	var capacity_run := _run_with_effect(definitions["cabin_expansion"])
+	_expect(capacity_run.controllers[0].capacity > ElevatorController.DEFAULT_CAPACITY, "Cabin Expansion should increase capacity")
+	var doors_run := _run_with_effect(definitions["door_actuators"])
+	_expect(doors_run.controllers[0].door_dwell_seconds < ElevatorController.DEFAULT_DOOR_DWELL_SECONDS, "Door Actuators should reduce door dwell")
+	var patience_run := _run_with_effect(definitions["patient_crowd"])
+	_expect(patience_run._patience_multiplier > 1.0, "Patient Crowd should increase the failure wait threshold")
+	var lobby_run := _run_with_effect(definitions["lobby_parking"])
+	_expect(lobby_run.controllers[2].staging_floor == 1, "Lobby Parking should stage every car at floor 1")
+	var bias_run := _run_with_effect(definitions["directional_bias"])
+	_expect(bias_run.dispatcher.direction_match_bonus > 0.0, "Directional Bias should adjust dispatcher matching cost")
+	var express_run := _run_with_effect(definitions["express_service"])
+	_expect(express_run.controllers[0].express_service_enabled, "Express Service should enable loaded-car hall-call skipping")
+	var priority_run := _run_with_effect(definitions["priority_routing"])
+	_expect(priority_run.dispatcher.waiting_time_priority > ElevatorDispatcher.WAITING_TIME_PRIORITY, "Priority Routing should strengthen request aging")
+	var preview_run := _run_with_effect(definitions["traffic_preview"])
+	_expect(preview_run.traffic_preview_unlocked, "Traffic Preview should unlock next-stage visibility")
+	var boarding_run := _run_with_effect(definitions["quick_boarding"])
+	_expect(boarding_run.controllers[0].transfer_seconds < ElevatorController.DEFAULT_TRANSFER_SECONDS, "Quick Boarding should shorten transfer time")
+	var relay_run := _run_with_effect(definitions["dispatch_relay"])
+	_expect(relay_run.dispatcher.intermediate_stop_penalty < ElevatorDispatcher.INTERMEDIATE_STOP_PENALTY, "Dispatch Relay should lower intermediate-stop penalty")
+	var service_run := _run_with_effect(definitions["wide_service"])
+	_expect(service_run._wide_service_enabled, "Wide Service should enable full unlocked-floor coverage")
+
+
+func _run_with_effect(definition: ElevatorUpgradeDefinition) -> ElevatorRunManager:
+	var stage := ElevatorStageDefinition.new(
+		1, 3, 1, 0.0, ElevatorStageDefinition.PATTERN_LOBBY_UP, 10, 60.0, 711,
+	)
+	var run := ElevatorRunManager.new([stage])
+	run.current_stage_index = 0
+	run._apply_upgrade_effect(definition)
+	run._prepare_current_stage()
+	return run
 
 
 func _two_easy_stages() -> Array[ElevatorStageDefinition]:

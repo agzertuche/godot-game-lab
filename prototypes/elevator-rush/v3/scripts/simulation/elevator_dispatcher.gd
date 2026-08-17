@@ -13,6 +13,24 @@ const WAITING_TIME_PRIORITY := 0.25
 
 signal hall_request_assigned(request: ElevatorHallRequest, controller: ElevatorController)
 
+var intermediate_stop_penalty := INTERMEDIATE_STOP_PENALTY
+var waiting_time_priority := WAITING_TIME_PRIORITY
+var direction_match_bonus := 0.0
+
+
+## Explicit policy seams for run-only upgrades. The dispatch loop stays stable
+## while its scoring policy can evolve independently.
+func set_intermediate_stop_penalty_multiplier(multiplier: float) -> void:
+	intermediate_stop_penalty = INTERMEDIATE_STOP_PENALTY * maxf(0.0, multiplier)
+
+
+func set_waiting_time_priority_multiplier(multiplier: float) -> void:
+	waiting_time_priority = WAITING_TIME_PRIORITY * maxf(0.0, multiplier)
+
+
+func set_direction_match_bonus(bonus: float) -> void:
+	direction_match_bonus = maxf(0.0, bonus)
+
 
 func calculate_assignment_cost(
 	controller: ElevatorController,
@@ -20,11 +38,12 @@ func calculate_assignment_cost(
 	now: float,
 ) -> float:
 	var pickup_eta := float(absi(request.floor - controller.current_floor)) * PICKUP_TIME_PER_FLOOR
-	var intermediate_stops := float(_intermediate_stop_count(controller, request)) * INTERMEDIATE_STOP_PENALTY
+	var intermediate_stops := float(_intermediate_stop_count(controller, request)) * intermediate_stop_penalty
 	var direction_penalty := DIRECTION_MISMATCH_PENALTY if _requires_turnaround(controller, request) else 0.0
 	var load_penalty := _load_ratio(controller) * LOAD_PENALTY
-	var age_priority := request.waiting_time(now) * WAITING_TIME_PRIORITY
-	return pickup_eta + intermediate_stops + direction_penalty + load_penalty - age_priority
+	var age_priority := request.waiting_time(now) * waiting_time_priority
+	var direction_bonus := direction_match_bonus if controller.service_direction == request.direction else 0.0
+	return pickup_eta + intermediate_stops + direction_penalty + load_penalty - age_priority - direction_bonus
 
 
 func assign_unassigned_requests(

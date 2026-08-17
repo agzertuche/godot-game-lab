@@ -13,6 +13,7 @@ signal elevator_direction_changed(previous_direction: int, next_direction: int)
 const DEFAULT_CAPACITY := 4
 const DEFAULT_TRAVEL_FLOORS_PER_SECOND := 2.0
 const DEFAULT_DOOR_DWELL_SECONDS := 0.8
+const DEFAULT_TRANSFER_SECONDS := 0.35
 
 var elevator_id: int
 var current_floor: int
@@ -29,6 +30,10 @@ var allowed_min_floor := 1
 var allowed_max_floor: int
 var travel_floor := 1.0
 var door_dwell_remaining := 0.0
+var travel_floors_per_second := DEFAULT_TRAVEL_FLOORS_PER_SECOND
+var door_dwell_seconds := DEFAULT_DOOR_DWELL_SECONDS
+var transfer_seconds := DEFAULT_TRANSFER_SECONDS
+var express_service_enabled := false
 
 
 func _init(identifier: int, starting_floor: int, floor_count: int) -> void:
@@ -43,6 +48,32 @@ func configure_service(min_floor: int, max_floor: int, idle_staging_floor: int) 
 	allowed_min_floor = mini(min_floor, max_floor)
 	allowed_max_floor = maxi(min_floor, max_floor)
 	staging_floor = clampi(idle_staging_floor, allowed_min_floor, allowed_max_floor)
+
+
+## Named simulation tuning seams used by run-only upgrades. Presentation never
+## mutates these fields directly.
+func set_travel_speed_multiplier(multiplier: float) -> void:
+	travel_floors_per_second = DEFAULT_TRAVEL_FLOORS_PER_SECOND * maxf(0.1, multiplier)
+
+
+func set_capacity_bonus(bonus: int) -> void:
+	capacity = maxi(1, DEFAULT_CAPACITY + bonus)
+
+
+func set_door_dwell_multiplier(multiplier: float) -> void:
+	door_dwell_seconds = DEFAULT_DOOR_DWELL_SECONDS * maxf(0.05, multiplier)
+
+
+func set_transfer_time_multiplier(multiplier: float) -> void:
+	transfer_seconds = DEFAULT_TRANSFER_SECONDS * maxf(0.05, multiplier)
+
+
+func set_idle_staging_floor(floor_value: int) -> void:
+	staging_floor = clampi(floor_value, allowed_min_floor, allowed_max_floor)
+
+
+func set_express_service_enabled(enabled: bool) -> void:
+	express_service_enabled = enabled
 
 
 func has_capacity() -> bool:
@@ -127,7 +158,7 @@ func step(delta: float, request_manager: ElevatorHallRequestManager) -> void:
 			target_floor = next
 			movement_state = SimulationTypes.MovementState.MOVING
 		return
-	travel_floor = move_toward(travel_floor, float(target_floor), DEFAULT_TRAVEL_FLOORS_PER_SECOND * delta)
+	travel_floor = move_toward(travel_floor, float(target_floor), travel_floors_per_second * delta)
 	if is_equal_approx(travel_floor, float(target_floor)):
 		current_floor = target_floor
 		target_floor = 0
@@ -149,7 +180,7 @@ func process_current_floor(request_manager: ElevatorHallRequestManager) -> void:
 func _arrive_at_current_floor() -> void:
 	movement_state = SimulationTypes.MovementState.STOPPED
 	door_state = SimulationTypes.DoorState.OPEN
-	door_dwell_remaining = DEFAULT_DOOR_DWELL_SECONDS
+	door_dwell_remaining = door_dwell_seconds + transfer_seconds
 	elevator_arrived.emit(current_floor)
 	doors_opened.emit(current_floor)
 
@@ -211,6 +242,8 @@ func _nearest_stop_in_direction(direction: int) -> int:
 	for floor_value: int in destination_requests:
 		if _is_ahead(floor_value, direction) and (result == 0 or _is_nearer_in_direction(floor_value, result, direction)):
 			result = floor_value
+	if express_service_enabled and not passengers.is_empty():
+		return result
 	for request: ElevatorHallRequest in assigned_hall_requests:
 		if request.is_active() and request.direction == direction and _is_ahead(request.floor, direction):
 			if result == 0 or _is_nearer_in_direction(request.floor, result, direction):
@@ -219,6 +252,8 @@ func _nearest_stop_in_direction(direction: int) -> int:
 
 
 func _request_at_current_floor(direction: int) -> ElevatorHallRequest:
+	if express_service_enabled and not passengers.is_empty():
+		return null
 	for request: ElevatorHallRequest in assigned_hall_requests:
 		if request.is_active() and request.floor == current_floor and request.direction == direction:
 			return request
