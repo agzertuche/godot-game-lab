@@ -171,8 +171,7 @@ func step(delta: float, request_manager: ElevatorHallRequestManager) -> void:
 func process_current_floor(request_manager: ElevatorHallRequestManager) -> void:
 	movement_state = SimulationTypes.MovementState.STOPPED
 	door_state = SimulationTypes.DoorState.OPEN
-	var exiting := _exit_passengers()
-	_ = exiting
+	_exit_passengers()
 	_adopt_pickup_direction_if_needed()
 	_board_compatible_passengers(request_manager)
 	door_state = SimulationTypes.DoorState.CLOSED
