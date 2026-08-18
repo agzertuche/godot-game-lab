@@ -13,7 +13,7 @@ enum RunPhase {
 	RESULT,
 }
 
-var phase: RunPhase = RunPhase.START
+var phase: int = RunPhase.START
 var run_manager: ElevatorRunManager
 var result_reason := ""
 
@@ -219,7 +219,7 @@ func _pattern_label(pattern: String) -> String:
 	return pattern.to_upper()
 
 
-func _set_phase(next_phase: RunPhase) -> void:
+func _set_phase(next_phase: int) -> void:
 	phase = next_phase
 	stage_hud.visible = phase != RunPhase.START
 	simulation_view.visible = phase == RunPhase.RUNNING or phase == RunPhase.UPGRADE
