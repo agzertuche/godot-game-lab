@@ -2,6 +2,7 @@ class_name ElevatorRunManager
 extends RefCounted
 
 const Passenger := preload("res://scripts/simulation/passenger.gd")
+const SimulationTypes := preload("res://scripts/simulation/simulation_types.gd")
 const HallRequestManager := preload("res://scripts/simulation/hall_request_manager.gd")
 const ElevatorControllerScript := preload("res://scripts/simulation/elevator_controller.gd")
 const ElevatorDispatcherScript := preload("res://scripts/simulation/elevator_dispatcher.gd")
