@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/presentation/simulation_view.gd" id="2_view"]
 
 [sub_resource type="StyleBoxFlat" id="StylePanel"]
 bg_color = Color(0.055, 0.082, 0.125, 0.98)
@@ -20,6 +21,47 @@ content_margin_bottom = 18.0
 
 [sub_resource type="StyleBoxFlat" id="StyleButton"]
 bg_color = Color(0.12, 0.42, 0.68, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.61, 0.86, 1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleUpgradeButton"]
+bg_color = Color(0.16, 0.31, 0.49, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.86, 0.37, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleUpgradeButtonHover"]
+bg_color = Color(0.24, 0.47, 0.7, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(1, 0.94, 0.58, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleResultButton"]
+bg_color = Color(0.62, 0.25, 0.25, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.78, 0.7, 1)
 corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
@@ -97,17 +139,26 @@ theme_override_styles/panel = SubResource("StylePanel")
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Header" type="Label" parent="Margin/Layout/StageHUD/Content"]
+[node name="StageHeader" type="Label" parent="Margin/Layout/StageHUD/Content"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.97, 1, 1)
 theme_override_font_sizes/font_size = 24
 text = "STAGE 1"
 
-[node name="Stats" type="Label" parent="Margin/Layout/StageHUD/Content"]
+[node name="StageStats" type="Label" parent="Margin/Layout/StageHUD/Content"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.74, 0.86, 0.97, 1)
 theme_override_font_sizes/font_size = 17
 text = "BACKLOG 0     OLDEST WAIT 0.0s\nBUILD: BASE SYSTEM"
+
+[node name="SimulationView" type="Control" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 270)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("2_view")
 
 [node name="Spacer" type="Control" parent="Margin/Layout"]
 layout_mode = 2
@@ -142,6 +193,7 @@ text = "SYSTEM UPGRADE"
 horizontal_alignment = 1
 
 [node name="Help" type="Label" parent="Margin/Layout/UpgradeChoicePanel/Content"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.88, 0.98, 1)
 theme_override_font_sizes/font_size = 16
@@ -149,19 +201,40 @@ text = "Choose one improvement for the next stage."
 horizontal_alignment = 1
 
 [node name="ChoiceOne" type="Button" parent="Margin/Layout/UpgradeChoicePanel/Content"]
-custom_minimum_size = Vector2(0, 48)
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
-text = "MOTOR TUNE  —  Faster travel"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleUpgradeButton")
+theme_override_styles/hover = SubResource("StyleUpgradeButtonHover")
+text = "MOTOR TUNE\n+30% elevator travel speed"
 
 [node name="ChoiceTwo" type="Button" parent="Margin/Layout/UpgradeChoicePanel/Content"]
-custom_minimum_size = Vector2(0, 48)
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
-text = "CABIN EXPANSION  —  More capacity"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleUpgradeButton")
+theme_override_styles/hover = SubResource("StyleUpgradeButtonHover")
+text = "CABIN EXPANSION\n+1 passenger capacity in every cabin"
 
 [node name="ChoiceThree" type="Button" parent="Margin/Layout/UpgradeChoicePanel/Content"]
-custom_minimum_size = Vector2(0, 48)
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
-text = "QUICK BOARDING  —  Faster transfers"
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleUpgradeButton")
+theme_override_styles/hover = SubResource("StyleUpgradeButtonHover")
+text = "QUICK BOARDING\nPassengers transfer significantly faster"
 
 [node name="RunResultPanel" type="PanelContainer" parent="Margin/Layout"]
 unique_name_in_owner = true
@@ -173,7 +246,8 @@ theme_override_styles/panel = SubResource("StylePanel")
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Header" type="Label" parent="Margin/Layout/RunResultPanel/Content"]
+[node name="ResultHeader" type="Label" parent="Margin/Layout/RunResultPanel/Content"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.55, 0.48, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
@@ -183,6 +257,7 @@ text = "RUN OVER"
 horizontal_alignment = 1
 
 [node name="Summary" type="Label" parent="Margin/Layout/RunResultPanel/Content"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.86, 0.93, 1, 1)
 theme_override_font_sizes/font_size = 18
@@ -190,6 +265,12 @@ text = "STAGE REACHED: 1\nSYSTEM SCORE: --"
 horizontal_alignment = 1
 
 [node name="Restart" type="Button" parent="Margin/Layout/RunResultPanel/Content"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleResultButton")
 text = "START NEW RUN"

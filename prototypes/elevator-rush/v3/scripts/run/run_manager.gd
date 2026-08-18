@@ -126,6 +126,14 @@ func spawned_passenger_count() -> int:
 	return _spawned_passengers.size()
 
 
+func completed_passenger_count() -> int:
+	var completed := 0
+	for passenger: ElevatorPassenger in _spawned_passengers:
+		if passenger.state == SimulationTypes.PassengerState.COMPLETED:
+			completed += 1
+	return completed
+
+
 func active_waiting_count() -> int:
 	if request_manager == null:
 		return 0
