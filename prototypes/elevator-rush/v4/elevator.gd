@@ -37,6 +37,9 @@ func _init(identifier: int = 1, floors: int = 4) -> void:
 func free_seats(hall: V4HallRequests) -> int:
 	return maxi(0, capacity - riders.size() - hall.assigned(id).size())
 
+func accepts(p: V4Passenger, hall: V4HallRequests) -> bool:
+	return free_seats(hall) > 0 and active_strategy.covers(p) and not (active_strategy.express and not riders.is_empty())
+
 func destinations() -> Array[int]:
 	var result: Array[int] = []
 	for p in riders:

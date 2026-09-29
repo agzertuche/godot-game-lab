@@ -13,7 +13,8 @@ func check(value: bool, message: String) -> void:
 		push_error(message)
 
 func run_tests() -> void:
-	var suite = load("res://tests/test_service.gd").new()
-	suite.run(self)
+	for file in ["test_service", "test_dispatch"]:
+		var suite = load("res://tests/%s.gd" % file).new()
+		suite.run(self)
 	print("V4: %d checks, %d failures" % [checks, failures.size()])
 	quit(0 if failures.is_empty() else 1)
