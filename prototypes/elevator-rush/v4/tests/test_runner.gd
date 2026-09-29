@@ -13,7 +13,7 @@ func check(value: bool, message: String) -> void:
 		push_error(message)
 
 func run_tests() -> void:
-	for file in ["test_service", "test_dispatch"]:
+	for file in ["test_service", "test_dispatch", "test_strategy", "test_run", "test_upgrades"]:
 		var suite = load("res://tests/%s.gd" % file).new()
 		suite.run(self)
 	print("V4: %d checks, %d failures" % [checks, failures.size()])

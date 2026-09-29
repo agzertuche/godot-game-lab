@@ -29,6 +29,9 @@ var transported := 0
 var full_seconds := 0.0
 var idle_seconds := 0.0
 var express_owned := false
+var pending_strategy: V4Strategy
+var cooldown_remaining := 0.0
+var committed_passengers: Dictionary = {}
 
 func _init(identifier: int = 1, floors: int = 4) -> void:
 	id = identifier
@@ -38,7 +41,32 @@ func free_seats(hall: V4HallRequests) -> int:
 	return maxi(0, capacity - riders.size() - hall.assigned(id).size())
 
 func accepts(p: V4Passenger, hall: V4HallRequests) -> bool:
-	return free_seats(hall) > 0 and active_strategy.covers(p) and not (active_strategy.express and not riders.is_empty())
+	return pending_strategy == null and free_seats(hall) > 0 and active_strategy.covers(p) and not (active_strategy.express and not riders.is_empty())
+
+func request_strategy(draft: V4Strategy, preparation: bool) -> bool:
+	if preparation:
+		active_strategy = draft.copy()
+		pending_strategy = null
+		cooldown_remaining = 0.0
+		return true
+	if cooldown_remaining > 0.0:
+		return false
+	pending_strategy = draft.copy()
+	return true
+
+func tick_strategy(delta: float, hall: V4HallRequests) -> void:
+	cooldown_remaining = maxf(0.0, cooldown_remaining - delta)
+	if pending_strategy == null or not committed_passengers.is_empty() or not hall.assigned(id).is_empty() or not riders.is_empty():
+		return
+	active_strategy = pending_strategy
+	pending_strategy = null
+	cooldown_remaining = 8.0
+
+func mark_commitment(p: V4Passenger) -> void:
+	committed_passengers[p.id] = true
+
+func clear_commitment(p: V4Passenger) -> void:
+	committed_passengers.erase(p.id)
 
 func destinations() -> Array[int]:
 	var result: Array[int] = []
@@ -141,6 +169,7 @@ func advance_service(delta: float, hall: V4HallRequests, now: float) -> void:
 			riders.erase(p)
 			p.state = V4Passenger.State.COMPLETED
 			p.owner = 0
+			clear_commitment(p)
 			transported += 1
 			passenger_exited.emit(p)
 		else:
@@ -165,6 +194,7 @@ func advance_service(delta: float, hall: V4HallRequests, now: float) -> void:
 				p.pickup_wait = now - p.request_time
 				hall.remove(p)
 				riders.append(p)
+				mark_commitment(p)
 				transferring = p
 				timer = transfer_seconds
 				return

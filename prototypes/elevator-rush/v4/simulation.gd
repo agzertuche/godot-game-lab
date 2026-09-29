@@ -47,9 +47,17 @@ func step() -> void:
 			if misses >= 5:
 				failed = true
 				return
+	for car in cars:
+		car.tick_strategy(STEP_SECONDS, hall)
 	dispatcher.assign(self)
 	for car in cars:
 		car.step(STEP_SECONDS, hall, time)
+
+func set_strategy(car_id: int, draft: V4Strategy, preparation: bool) -> bool:
+	for car in cars:
+		if car.id == car_id:
+			return car.request_strategy(draft.validated(floors), preparation)
+	return false
 
 func is_drained() -> bool:
 	for p in passengers:

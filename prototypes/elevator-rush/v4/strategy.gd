@@ -19,6 +19,15 @@ func validated(floors: int) -> V4Strategy:
 func covers(p: V4Passenger) -> bool:
 	return p.origin >= min_floor and p.origin <= max_floor and p.destination >= min_floor and p.destination <= max_floor
 
+func copy() -> V4Strategy:
+	var result := V4Strategy.new()
+	result.min_floor = min_floor
+	result.max_floor = max_floor
+	result.staging = staging
+	result.preference = preference
+	result.express = express
+	return result
+
 func summary() -> String:
 	var mode := "Normal" if preference == 0 else "Favor up" if preference == 1 else "Favor down"
 	return "F%d–%d · idle F%d · %s%s" % [min_floor, max_floor, staging, mode, " · Express" if express else ""]
